@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}
+  Contact – Sushi Naruto
+{% endblock %}
+
+{% block content %}
+  <style>
+    /* ...existing code... */
+    .container {
+      max-width: 1100px;
+      margin: auto;
+      padding: 20px;
+    }
+    
+    .fade-in {
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+    
+    @keyframes fadeInUp {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .section-box {
+      background: #fff;
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    }
+    
+    h2.section-title {
+      position: relative;
+      text-align: center;
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    
+    h2.section-title::after {
+      content: '';
+      display: block;
+      width: 80px;
+      height: 3px;
+      background: #ff4d4d;
+      margin: 10px auto 0;
+    }
+    
+    ul {
+      padding-left: 20px;
+    }
+    
+    input[type='text'],
+    input[type='email'],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      margin-bottom: 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    
+    input[type='submit'] {
+      background: #ff4d4d;
+      color: #fff;
+      border: none;
+      padding: 12px 30px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: background 0.3s;
+    }
+    
+    input[type='submit']:hover {
+      background: #d73838;
+    }
+    
+    @media (max-width: 768px) {
+      .info-flex {
+        flex-direction: column;
+      }
+    }
+    /* ...existing code... */
+  </style>
+
+  <!-- 📍 Contact Details & Opening Hours -->
+  <div class="container">
+    <div class="info-flex">
+      <div class="fade-in section-box info-section">
+        <h2 class="section-title">📞 Contact Us</h2>
+        <p>
+          <strong>Address:</strong> Binningerstrasse 6, 4123 Allschwil, Switzerland
+        </p>
+        <p>
+          <strong>Phone:</strong> <a href="tel:+41615064123">+41 61 506 41 23</a>
+        </p>
+        <p>
+          <strong>Email:</strong> <a href="mailto:info@sushinaruto.ch">info@sushinaruto.ch</a>
+        </p>
+        <p>
+          <strong>We offer Pick-up & Delivery</strong>
+        </p>
+      </div>
+
+      <div class="fade-in section-box info-section">
+        <h2 class="section-title">🕒 Opening Hours</h2>
+        <ul>
+          <li>Tuesday - Friday: 11:00 - 14:00, 17:00 - 22:00</li>
+          <li>Saturday - Sunday: 17:00 - 22:00</li>
+          <li>Monday: Closed</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ✉️ Contact Form -->
+  <div class="container fade-in">
+    <div class="section-box">
+      <h2 class="section-title">Send us a Message</h2>
+      <form method="post">
+        {% csrf_token %}
+        <label for="name">Name</label><br />
+        <input type="text" name="name" id="name" required /><br />
+
+        <label for="email">Email</label><br />
+        <input type="email" name="email" id="email" required /><br />
+
+        <label for="message">Your message</label><br />
+        <textarea name="message" id="message" rows="5" required></textarea><br />
+
+        <input type="submit" value="Send" />
+      </form>
+
+      {% if messages %}
+        {% for message in messages %}
+          <p style="color: green;">{{ message }}</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- 🌍 Google Map Full Width -->
+  <div class="fade-in" style="width:100vw;position:relative;left:50%;right:50%;margin-left:-50vw;margin-right:-50vw;margin-top:50px;margin-bottom:50px;">
+    <h2 class="section-title">📍 Our Location</h2>
+    <div style="max-width: 100%; overflow: hidden; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2762.8037460299266!2d7.545749915624454!3d47.55055927917962!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4791b82ff28b47b5%3A0x6b5425c7de6c8cf!2sBinningerstrasse%206%2C%204123%20Allschwil%2C%20Switzerland!5e0!3m2!1sen!2sch!4v1654363649424!5m2!1sen!2sch" width="100%" height="500" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+  </div>
+{% endblock %}

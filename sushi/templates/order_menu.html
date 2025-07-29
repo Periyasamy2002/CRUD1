@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Sushi Naruto – Menu & Order{% endblock %}
+
+{% block content %}
+<style>
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 20px;
+        font-family: Arial, sans-serif;
+    }
+
+    .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    @keyframes fadeIn {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .box {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .hero {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .hero img {
+        max-width: 300px;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .hero-text h1 {
+        color: #b91c1c;
+        font-size: 32px;
+        margin-bottom: 10px;
+    }
+
+    .hero-text p {
+        font-size: 16px;
+        color: #333;
+    }
+
+    .featured {
+        border-left: 6px solid #38a169;
+        background-color: #f0fdf4;
+    }
+
+    .featured img {
+        width: 90px;
+        margin-right: 15px;
+        border-radius: 8px;
+    }
+
+    .featured-content {
+        display: flex;
+        align-items: center;
+    }
+
+    h2 {
+        font-size: 24px;
+        margin-bottom: 15px;
+        color: #222;
+    }
+
+    ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    li {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    li img {
+        width: 60px;
+        margin-right: 15px;
+        border-radius: 8px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+
+    input, textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    button {
+        background-color: #c53030;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 15px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #9b2c2c;
+    }
+
+    @media (max-width: 768px) {
+        .hero {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="container">
+
+    <!-- Hero Section -->
+    <div class="fade-in box hero">
+        <img src="{% static 'order/order_hero.png' %}" alt="Order Hero">
+        <img src="{% static 'order/order_hero.png' %}" alt="Order Hero">
+        <img src="{% static 'order/order_hero.png' %}" alt="Order Hero">
+        <div class="hero-text">
+            <h1>Order Ahead</h1>
+            <p>Pre-order your favorite sushi and Asian dishes for takeaway. Fast, fresh, and ready when you arrive!</p>
+            <p><strong style="color:#c53030;">🎉 10% Rabatt auf Ihre 1. Bestellung</strong></p>
+        </div>
+    </div>
+
+    <!-- Featured Dish -->
+    <div class="fade-in box featured">
+        <h2>🌟 Featured Dish</h2>
+        <div class="featured-content">
+            <img src="{% static 'order/featured_sushi.jpg' %}" alt="Featured Sushi">
+            <p>Try our <strong>Pans Delight</strong> – 4 Lachs, Thonmousse, Avocado & Tamago Maki – <span style="color: #c53030;">20.00 CHF</span></p>
+        </div>
+    </div>
+
+    <!-- Vorspeisen Section -->
+    <div class="fade-in box">
+        <h2>🥢 Vorspeisen</h2>
+        <ul>
+            <li>
+                <img src="{% static 'order/edamame.jpg' %}" alt="Edamame">
+                Edamame (vegetarisch) – Edamame und Salz – <strong>6.00 CHF</strong>
+            </li>
+            <li>
+                <img src="{% static 'order/miso_soup.jpg' %}" alt="Miso Soup">
+                Miso Soup (vegetarisch) – Miso, marinierter Tofu und Algen – <strong>6.00 CHF</strong>
+            </li>
+            <li>
+                <img src="{% static 'order/wakame_salad.jpg' %}" alt="Wakame Salat">
+                Wakame Salat (vegetarisch) – Algensalat und Sesam – <strong>6.00 CHF</strong>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Sushi Plates Section -->
+    <div class="fade-in box">
+        <h2>🍣 Sushi Plates</h2>
+        <ul>
+            <li>
+                <img src="{% static 'order/pans_delight.jpg' %}" alt="Pans Delight">
+                Pans Delight – Serviert mit je 4 Lachs, Thonmousse, Avocado und Tamago Maki – <strong>20.00 CHF</strong>
+            </li>
+            <li>
+                <img src="{% static 'order/ikebana_delight.jpg' %}" alt="Ikebana Delight">
+                Ikebana Delight (vegetarisch) – <strong>22.00 CHF</strong>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Order Form -->
+    <div class="fade-in box">
+        <h2>📝 Pre-Order Now</h2>
+        <form method="POST" action=".">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input type="text" id="phone" name="phone" required>
+            </div>
+            <div class="form-group">
+                <label for="details">Order Details</label>
+                <textarea id="details" name="details" rows="4"></textarea>
+            </div>
+            <button type="submit">Submit Order</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
