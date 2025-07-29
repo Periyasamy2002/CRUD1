@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Table Reservation – Sushi Naruto{% endblock %}
+
+{% block content %}
+<style>
+    .fade-in {
+        opacity: 0;
+        transform: translateY(20px);
+        animation: fadeInUp 0.7s ease-out forwards;
+    }
+
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .reservation-box {
+        max-width: 700px;
+        margin: 0 auto;
+        padding: 30px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    }
+
+    label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    input {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 15px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    input:focus {
+        border-color: #ff4d4d;
+        box-shadow: 0 0 5px rgba(255, 77, 77, 0.4);
+        outline: none;
+    }
+
+    input[type="submit"] {
+        background-color: #ff4d4d;
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s ease;
+    }
+
+    input[type="submit"]:hover {
+        background-color: #e04343;
+    }
+</style>
+
+<!-- Hero Section -->
+<div class="fade-in flex flex-col md:flex-row items-center mb-10 px-4">
+    <img src="{% static 'images/reservation_hero.jpg' %}" alt="Reserve Table Sushi Naruto" class="rounded-lg shadow-lg w-full max-w-xs md:max-w-sm mr-0 md:mr-6 mb-4 md:mb-0">
+    <div>
+        <h1 class="text-3xl font-bold text-red-700 mb-2">Reserve a Table</h1>
+        <p class="text-lg text-gray-700">Call us at <strong>+41 61 506 41 23</strong> or fill out the form below to book your table. We look forward to welcoming you!</p>
+    </div>
+</div>
+
+<!-- Additional Text -->
+<div class="fade-in text-center px-4 md:px-20 mb-8">
+    <p class="text-gray-700 text-lg">
+        Whether you're planning a romantic evening, a family gathering, or a business lunch, reserving in advance helps us serve you better. Choose your preferred time and date, and we’ll take care of the rest.
+    </p>
+    <p class="text-gray-600 mt-4">
+        Our team will send you a confirmation email shortly after your reservation is submitted. Please note that reservations are held for 15 minutes after the selected time.
+    </p>
+</div>
+
+<!-- Image Cards Section (6 Cards) -->
+
+<div class="fade-in grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4 md:px-20 mb-12">
+    <!-- Card 1 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/int2.jpg' %}" alt="Private Dining" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Private Dining</h3>
+            <p class="text-gray-600 text-sm mt-2">Reserve a quiet, elegant space for your special event.</p>
+        </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/int4.jpg' %}" alt="Family Friendly" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Family Friendly</h3>
+            <p class="text-gray-600 text-sm mt-2">We have spacious seating and options for all ages.</p>
+        </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Business Lunch" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Business Lunch</h3>
+            <p class="text-gray-600 text-sm mt-2">Perfect setting for professional meetings and meals.</p>
+        </div>
+    </div>
+
+    <!-- Card 4 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Romantic Evenings" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Romantic Evenings</h3>
+            <p class="text-gray-600 text-sm mt-2">Candle-lit dinners with a serene and cozy ambiance.</p>
+        </div>
+    </div>
+
+    <!-- Card 5 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Chef Specials" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Chef’s Specials</h3>
+            <p class="text-gray-600 text-sm mt-2">Reserve and get a taste of our limited-time dishes.</p>
+        </div>
+    </div>
+
+    <!-- Card 6 -->
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Outdoor Seating" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <div class="p-4">
+            <h3 class="text-xl font-semibold text-red-700">Outdoor Seating</h3>
+            <p class="text-gray-600 text-sm mt-2">Enjoy sushi in the open air with our patio seating.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Message -->
+{% if reservation_success %}
+    <div class="fade-in bg-green-100 border-l-4 border-green-400 p-4 mb-6 text-green-800 text-center max-w-xl mx-auto">
+        Thank you for your reservation! We will confirm by email soon.
+    </div>
+{% endif %}
+
+<!-- Reservation Form -->
+<div class="fade-in px-4">
+    <div class="reservation-box">
+        <form method="post">
+            {% csrf_token %}
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" required>
+
+            <label for="time">Time:</label>
+            <input type="time" id="time" name="time" required>
+
+            <label for="people">Number of People:</label>
+            <input type="number" id="people" name="people" min="1" required>
+
+            <input type="submit" value="Reserve">
+        </form>
+    </div>
+</div>
+{% endblock %}
