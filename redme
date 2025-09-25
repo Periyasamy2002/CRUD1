@@ -1,0 +1,366 @@
+this views.py code
+//
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login as auth_login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
+from .models import MenuCategory, MenuItem, SpecialMenu, Order
+from .forms import MenuItemForm
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.core.mail import send_mail
+from django.contrib import messages
+import json
+
+# ---------------- Public Views ----------------
+
+def home(request):
+    featured_menuitems = MenuItem.objects.filter(featured=True)[:6]
+    special_menuitems = SpecialMenu.objects.all()[:6]
+    return render(request, 'home.html', {
+        'featured_menuitems': featured_menuitems,
+        'special_menuitems': special_menuitems
+    })
+
+def menu(request):
+    menuitems = MenuItem.objects.select_related('category').all()
+    return render(request, 'menu.html', {'menuitems': menuitems})
+
+
+def contact(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        message = request.POST.get('message')
+
+        subject = f'New message from {name}'
+        full_message = f"From: {name} <{email}>\n\nMessage:\n{message}"
+
+        try:
+            send_mail(subject, full_message, email, ['saranvignesh55@gmail.com'])
+            messages.success(request, 'Message sent successfully!')
+        except:
+            messages.error(request, 'Failed to send message. Try again later.')
+
+        return redirect('contact')  # Change to your contact page URL name
+
+    return render(request, 'contact.html')
+
+def table_reservation(request):
+    return render(request, 'reservation.html')
+
+def order_menu(request):
+    return render(request, 'order_menu.html')
+
+
+# ---------------- Admin: Create Menu Item ----------------
+
+@login_required
+def menuitem_create(request):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    categories = MenuCategory.objects.all()
+    error_message = None
+
+    if request.method == 'POST':
+        category_id = request.POST.get('category')
+        name = request.POST.get('name')
+        description = request.POST.get('description', '')
+        price = request.POST.get('price')
+        image = request.FILES.get('image')
+
+        try:
+            category = MenuCategory.objects.get(id=category_id)
+            MenuItem.objects.create(
+                category=category,
+                name=name,
+                description=description,
+                price=price,
+                image=image
+            )
+            return redirect('menuitem_list')
+        except MenuCategory.DoesNotExist:
+            error_message = "Selected category does not exist."
+
+    return render(request, 'admin/menuitem_form.html', {
+        'categories': categories,
+        'error_message': error_message
+    })
+
+
+# ---------------- Admin: List Menu Items ----------------
+
+@login_required
+def menuitem_list(request):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    menuitems = MenuItem.objects.all()
+    categories = MenuCategory.objects.all()
+    error_message = request.GET.get('error_message', None)
+    return render(request, 'menuitem_list.html', {
+        'menuitems': menuitems,
+        'categories': categories,
+        'error_message': error_message
+    })
+
+
+# ---------------- Admin Login ----------------
+
+def admin_login(request):
+    if request.user.is_authenticated and request.user.is_staff:
+        return redirect('menuitem_list')
+
+    error = None
+
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None and user.is_staff:
+            auth_login(request, user)
+            return redirect('menuitem_list')
+        else:
+            error = "Invalid credentials or user does not have access."
+
+    return render(request, "admin/login.html", {"error": error})
+
+
+# ---------------- Admin: Edit Menu Item ----------------
+
+@login_required
+def menuitem_edit(request, item_id):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    item = get_object_or_404(MenuItem, id=item_id)
+    categories = MenuCategory.objects.all()
+
+    if request.method == 'POST':
+        item.name = request.POST.get('name')
+        item.description = request.POST.get('description')
+        item.price = request.POST.get('price')
+        item.category = get_object_or_404(MenuCategory, id=request.POST.get('category'))
+
+        if 'image' in request.FILES:
+            item.image = request.FILES['image']
+
+        item.save()
+        return redirect('menuitem_list')
+
+    return render(request, 'admin/menuitem_form.html', {
+        'item': item,
+        'categories': categories
+    })
+
+
+# ---------------- Admin: Delete Menu Item ----------------
+
+@login_required
+def menuitem_delete(request, item_id):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    item = get_object_or_404(MenuItem, id=item_id)
+
+    if request.method == 'POST':
+        item.delete()
+        return redirect('menuitem_list')
+
+    return render(request, 'sushi/menuitem_confirm_delete.html', {'item': item})
+
+
+# ---------------- Public Login View ----------------
+
+def login_view(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            auth_login(request, user)
+            if user.is_staff:
+                return redirect('menuitem_list')  # Admin dashboard
+            else:
+                return redirect('home')  # Public user homepage
+        else:
+            return render(request, 'login.html', {'error': 'Invalid username or password'})
+    
+    return render(request, 'login.html')
+
+
+# ---------------- Admin: Create Category ----------------
+
+@csrf_exempt
+def category_create(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        added_by = request.POST.get('added_by')
+        if name and added_by:
+            MenuCategory.objects.create(name=name, added_by=added_by)
+            return JsonResponse({'success': True})
+        return JsonResponse({'success': False, 'error': 'Missing fields'})
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+def menu_management(request):
+    categories = MenuCategory.objects.all()
+    menuitems = MenuItem.objects.all()
+    return render(request, 'menu_management.html', {
+        'categories': categories,
+        'menuitems': menuitems
+    })
+
+def category_edit(request, pk):
+    category = get_object_or_404(MenuCategory, pk=pk)
+    if request.method == 'POST':
+        category.name = request.POST.get('name')
+        category.added_by = request.POST.get('added_by')
+        category.save()
+        return redirect('menu_management')
+    return render(request, 'menu_management.html', {'category': category})
+
+def category_delete(request, pk):
+    category = get_object_or_404(MenuCategory, pk=pk)  # safer than Category.objects.get()
+    category.delete()
+    return redirect('category_list') 
+
+from collections import defaultdict
+
+# View details of a single menu item
+def menuitem_view(request, pk):
+    item = get_object_or_404(MenuItem, pk=pk)
+    return render(request, 'menuitem_view.html', {'item': item})
+
+# Add new item
+def menuitem_add(request):
+    if request.method == 'POST':
+        form = MenuItemForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('menuitem_list')
+    else:
+        form = MenuItemForm()
+    return render(request, 'menuitem_add.html', {'form': form})
+
+# Update item
+def menuitem_update(request, pk):
+    item = get_object_or_404(MenuItem, pk=pk)
+    if request.method == 'POST':
+        form = MenuItemForm(request.POST, request.FILES, instance=item)
+        if form.is_valid():
+            form.save()
+            return redirect('menuitem_list')
+    else:
+        form = MenuItemForm(instance=item)
+    return render(request, 'menuitem_add.html', {'form': form})  # reuse same form
+
+# ---------------- Order Processing ----------------
+
+@csrf_exempt
+def order_submit(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            # Step 1: Validate required fields
+            required = ['item', 'price', 'qty', 'orderType', 'email', 'mobile', 'address', 'delivery']
+            for field in required:
+                if not data.get(field):
+                    return JsonResponse({'success': False, 'error': f'Missing {field}.'})
+            # Step 2: If orderType is 'later', validate date/time
+            if data['orderType'] == 'later':
+                if not data.get('orderDate') or not data.get('orderTime'):
+                    return JsonResponse({'success': False, 'error': 'Date and time required for scheduled order.'})
+            # Step 3: Save order
+            order = Order.objects.create(
+                item=data['item'],
+                price=data['price'],
+                qty=data['qty'],
+                order_type=data['orderType'],
+                order_date=data.get('orderDate') or None,
+                order_time=data.get('orderTime') or None,
+                email=data['email'],
+                mobile=data['mobile'],
+                address=data['address'],
+                delivery=data['delivery'],
+            )
+            return JsonResponse({'success': True, 'order_id': order.id})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid request'})
+
+
+
+
+@login_required
+def order_action(request, order_id):
+    order = get_object_or_404(Order, id=order_id, email=request.user.email)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'get':
+            order.status = 'got'
+        elif action == 'out':
+            order.status = 'out'
+        elif action == 'cancel':
+            order.status = 'cancelled'
+        order.save()
+    return redirect('order_details')
+
+# ---------------- Order History and Tracking ----------------
+
+@login_required
+def order_history(request):
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
+    return render(request, 'order_history.html', {'orders': orders})
+
+@login_required
+def order_live_track(request):
+    orders = Order.objects.filter(email=request.user.email, status='pending').order_by('-created_at')
+    return render(request, 'order_live_track.html', {'orders': orders})
+
+@login_required
+def order_details(request):
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
+    return render(request, 'oder_food_table.html', {'orders': orders})
+
+def admin_manage(request):
+    return render(request, 'adminmanage.html')
+
+def admin2_login(request):
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        if username == 'saran2002' and password == 'saran@oo2':
+            request.session['admin2_logged_in'] = True
+            return redirect('admin2_dashboard')
+        else:
+            return render(request, 'admin2_login.html', {'error': 'Invalid credentials'})
+    return render(request, 'admin2_login.html')
+
+def admin2_dashboard(request):
+    if not request.session.get('admin2_logged_in'):
+        return redirect('admin2_login')
+    return render(request, 'admin2.html')
+
+from django.contrib.auth import get_user_model
+
+def signup(request):
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        email = request.POST.get('email')
+        User = get_user_model()
+        if username and password:
+            if not User.objects.filter(username=username).exists():
+                user = User.objects.create_user(username=username, password=password, email=email)
+                auth_login(request, user)
+                return redirect('home')
+            else:
+                return render(request, 'signup.html', {'error': 'Username already exists'})
+        else:
+            return render(request, 'signup.html', {'error': 'Please fill all fields'})
+    return render(request, 'signup.html')
+
+---------------- Recent Edits ----------------

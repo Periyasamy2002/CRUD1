@@ -1,0 +1,114 @@
+{% extends 'base2.html' %}
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/menuitem.css' %}">
+<h2>Add Menu Item</h2>
+
+<!-- Add Category Button -->
+<button id="add-category-btn" onclick="openCategoryModal()">+ Add Category</button>
+
+<!-- Modal for Add Category -->
+<div id="categoryModal">
+    <div class="modal-content">
+        <button class="close" onclick="closeCategoryModal()">✕</button>
+        <h3 style="text-align: center;">Add New Category</h3>
+        <form method="POST" action="{% url 'category_create' %}">
+            {% csrf_token %}
+            <label for="category_name">Category Name:</label>
+            <input type="text" name="category_name" id="category_name" required>
+            <label for="username">Username:</label>
+            <input type="text" name="username" id="username" required>
+            <button type="submit" style="margin-top: 15px;">Add Category</button>
+        </form>
+    </div>
+</div>
+
+<!-- Add Menu Item Form -->
+<form method="POST" enctype="multipart/form-data" action="{% url 'menuitem_add' %}">
+    {% csrf_token %}
+    <label for="category">Category:</label>
+    <select name="category" id="category" required>
+        {% for category in menuitems_by_category.keys %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+        {% endfor %}
+    </select>
+
+    <label for="name">Name:</label>
+    <input type="text" name="name" id="name" required>
+
+    <label for="description">Description:</label>
+    <textarea name="description" id="description"></textarea>
+
+    <label for="price">Price (CHF):</label>
+    <input type="number" name="price" id="price" step="0.01" required>
+
+    <label for="image">Image:</label>
+    <input type="file" name="image" id="image">
+
+    <button type="submit">Add Menu Item</button>
+</form>
+
+<!-- Display Menu Items by Category -->
+{% for category, items in menuitems_by_category.items %}
+    <div>
+        <h2 class="category-title">{{ category.name }}</h2>
+        <table class="category-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Description</th>
+                    <th>Price (CHF)</th>
+                    <th>Image</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.description }}</td>
+                    <td>{{ item.price }}</td>
+                    <td>
+                        {% if item.image %}
+                            <img src="{{ item.image.url }}" alt="{{ item.name }}">
+                        {% else %}
+                            No image
+                        {% endif %}
+                    </td>
+                    <td class="action-buttons">
+                        <!-- View Button -->
+                        <a href="{% url 'menuitem_view' item.id %}">
+                            <button class="btn-view">View</button>
+                        </a>
+
+                        <!-- Edit Button -->
+                        <a href="{% url 'menuitem_update' item.id %}">
+                            <button class="btn-edit">Edit</button>
+                        </a>
+
+                        <!-- Delete Button -->
+                        <form method="POST" action="{% url 'menuitem_delete' item.id %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button class="btn-delete" onclick="return confirm('Delete this item?')">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5">No items in this category.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endfor %}
+
+<script>
+    function openCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'block';
+    }
+
+    function closeCategoryModal() {
+        document.getElementById('categoryModal').style.display = 'none';
+    }
+</script>
+
+{% endblock %}

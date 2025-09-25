@@ -1,0 +1,125 @@
+<!-- templates/category.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Category Management</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Optional: Externalize CSS -->
+</head>
+<body>
+
+<!-- Add Category Button -->
+<button class="add-category-btn" onclick="document.getElementById('categoryModal').style.display='block'">+ Add Category</button>
+
+<!-- Category Modal -->
+<div id="categoryModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="document.getElementById('categoryModal').style.display='none'">&times;</span>
+        <h3>Add New Category</h3>
+        <form id="categoryForm" method="POST" action="{% url 'category_create' %}">
+            {% csrf_token %}
+            <label for="cat_name">Category Name:</label>
+            <input type="text" name="name" id="cat_name" required>
+
+            <label for="added_by">Added By:</label>
+            <input type="text" name="added_by" id="added_by" required>
+
+            <button type="submit">Add Category</button>
+            <div id="catMsg"></div>
+        </form>
+    </div>
+</div>
+
+<!-- Category Edit Modal -->
+<div id="editCategoryModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="document.getElementById('editCategoryModal').style.display='none'">&times;</span>
+        <h3>Edit Category</h3>
+        <form id="editCategoryForm" method="POST" action="">
+            {% csrf_token %}
+            <input type="hidden" name="category_id" id="edit_cat_id">
+            <label for="edit_cat_name">Category Name:</label>
+            <input type="text" name="name" id="edit_cat_name" required>
+
+            <label for="edit_added_by">Added By:</label>
+            <input type="text" name="added_by" id="edit_added_by" required>
+
+            <button type="submit">Update Category</button>
+            <div id="editCatMsg"></div>
+        </form>
+    </div>
+</div>
+
+<!-- Category Table -->
+<h2 style="text-align:center;">Category List</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Category Name</th>
+            <th>Added By</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for category in categories %}
+        <tr>
+            <td>{{ category.name }}</td>
+            <td>{{ category.added_by }}</td>
+            <td class="action-btns">
+                <form method="POST" action="{% url 'category_delete' category.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" onclick="return confirm('Delete this category?')">Delete</button>
+                </form>
+                <button type="button" onclick="openCategoryEditModal({{ category.id }}, '{{ category.name }}', '{{ category.added_by }}')">Update</button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">No categories found.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    function openCategoryEditModal(id, name, addedBy) {
+        document.getElementById('edit_cat_id').value = id;
+        document.getElementById('edit_cat_name').value = name;
+        document.getElementById('edit_added_by').value = addedBy;
+        document.getElementById('editCategoryForm').action = "{% url 'category_edit' 0 %}".replace('/0/', '/' + id + '/');
+        document.getElementById('editCategoryModal').style.display = 'block';
+    }
+
+    window.onclick = function(event) {
+        ['categoryModal', 'editCategoryModal'].forEach(function(id) {
+            const modal = document.getElementById(id);
+            if (event.target == modal) modal.style.display = "none";
+        });
+    };
+
+    document.getElementById('categoryForm').onsubmit = function(e) {
+        e.preventDefault();
+        const form = this;
+        const data = new FormData(form);
+        fetch(form.action, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': data.get('csrfmiddlewaretoken') },
+            body: data
+        })
+        .then(res => res.json())
+        .then(data => {
+            const msg = document.getElementById('catMsg');
+            if (data.success) {
+                msg.textContent = "Category added!";
+                msg.style.color = "green";
+                form.reset();
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                msg.textContent = data.error || "Error adding category.";
+                msg.style.color = "red";
+            }
+        });
+    };
+</script>
+
+</body>
+</html>
