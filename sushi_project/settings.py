@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'sushi',  # Your sushi application
 ]
 
+AUTH_USER_MODEL = 'sushi.CustomUser'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -126,6 +128,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# URL to redirect to for login, especially for views using @login_required
+LOGIN_URL = 'admin_login'
 
 
 # settings.py

@@ -1,0 +1,96 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+{% load static %}
+<link rel="stylesheet" href="{% static 'css/order_history.css' %}">
+
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold mb-6 text-gradient bg-clip-text text-transparent"
+        style="background: linear-gradient(90deg, #f43f5e, #ec4899);">
+        Order History
+    </h1>
+
+    <!-- Search Bar -->
+    <form method="get" action="{% url 'order_history' %}" class="mb-6 flex gap-3">
+        <input type="text" name="q" placeholder="Search by email..." value="{{ request.GET.q }}"
+            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-pink-400 transition duration-300">
+        <button type="submit"
+            class="px-5 py-2 bg-gradient-to-r from-pink-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:scale-105 transform transition duration-300">
+            Search
+        </button>
+    </form>
+
+    <!-- Orders Table -->
+    <div class="overflow-x-auto rounded-lg shadow-lg">
+        <table class="min-w-full bg-white border border-gray-200 divide-y divide-gray-200 animate-fadeIn">
+            <thead class="bg-gradient-to-r from-pink-100 to-red-100">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order ID</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Mobile</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Item</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Price</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quantity</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order Date</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Created At</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for order in orders %}
+                <tr class="hover:bg-pink-50 transition duration-200">
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.id }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.email }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.mobile }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.address }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.item }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.price }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.qty }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.order_date }} {{ order.order_time }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 rounded-full font-medium text-white 
+                            {% if order.status == 'Pending' %}bg-yellow-400
+                            {% elif order.status == 'Completed' %}bg-green-500
+                            {% else %}bg-red-500{% endif %}">
+                            {{ order.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">{{ order.created_at }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <form method="post" action="{% url 'delete_order' order.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Are you sure?')"
+                                class="text-red-600 hover:text-red-900 font-semibold transition duration-200">
+                                Delete
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="11" class="px-6 py-4 text-center text-gray-500">No orders found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Extra CSS for animations -->
+<style>
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-fadeIn {
+    animation: fadeIn 0.5s ease-in-out;
+}
+.text-gradient {
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+</style>
+
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Order Details{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h2 class="text-2xl font-bold mb-4">Order Details</h2>
+    <table class="min-w-full bg-white border">
+        <thead>
+            <tr>
+                <th class="px-4 py-2 border">Item</th>
+                <th class="px-4 py-2 border">Qty</th>
+                <th class="px-4 py-2 border">Total</th>
+                <th class="px-4 py-2 border">Status</th>
+                <th class="px-4 py-2 border">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td class="px-4 py-2 border">{{ order.item }}</td>
+                <td class="px-4 py-2 border">{{ order.qty }}</td>
+                <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
+                <td class="px-4 py-2 border">{{ order.status }}</td>
+                <td class="px-4 py-2 border">
+                    <form method="post" action="{% url 'order_action' order.id %}" class="inline">
+                        {% csrf_token %}
+                        <button name="action" value="get" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Get</button>
+                        <button name="action" value="out" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Out</button>
+                        <button name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="text-center py-4">No orders found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
