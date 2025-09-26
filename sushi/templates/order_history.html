@@ -1,4 +1,4 @@
-{% extends 'base2.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 {% load static %}
@@ -20,61 +20,23 @@
         </button>
     </form>
 
-    <!-- Orders Table -->
-    <div class="overflow-x-auto rounded-lg shadow-lg">
-        <table class="min-w-full bg-white border border-gray-200 divide-y divide-gray-200 animate-fadeIn">
-            <thead class="bg-gradient-to-r from-pink-100 to-red-100">
-                <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Email</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Mobile</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Address</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Item</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Price</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quantity</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order Date</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Created At</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                {% for order in orders %}
-                <tr class="hover:bg-pink-50 transition duration-200">
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.id }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.email }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.mobile }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.address }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.item }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.price }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.qty }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.order_date }} {{ order.order_time }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 py-1 rounded-full font-medium text-white 
-                            {% if order.status == 'Pending' %}bg-yellow-400
-                            {% elif order.status == 'Completed' %}bg-green-500
-                            {% else %}bg-red-500{% endif %}">
-                            {{ order.status }}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.created_at }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <form method="post" action="{% url 'delete_order' order.pk %}" style="display:inline;">
-                            {% csrf_token %}
-                            <button type="submit" onclick="return confirm('Are you sure?')"
-                                class="text-red-600 hover:text-red-900 font-semibold transition duration-200">
-                                Delete
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="11" class="px-6 py-4 text-center text-gray-500">No orders found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <!-- Orders Cards -->
+    <div class="grid gap-6 md:grid-cols-2">
+        {% for order in orders %}
+        <div class="bg-white rounded-lg shadow p-4 animate-fadeIn">
+            <div class="font-semibold text-lg mb-2">{{ order.item }}</div>
+            <div>Qty: {{ order.qty }}</div>
+            <div>Price: {{ order.price }}</div>
+            <div>Status: <span class="font-semibold">{{ order.status }}</span></div>
+            <div>Date: {{ order.created_at|date:"Y-m-d H:i" }}</div>
+            <a href="{% url 'order_detail' order.pk %}"
+                class="mt-3 inline-block px-5 py-2 bg-gradient-to-r from-pink-500 to-red-500 text-white font-semibold rounded-lg shadow-lg hover:scale-105 transform transition duration-300">
+                View
+            </a>
+        </div>
+        {% empty %}
+        <p>No orders found.</p>
+        {% endfor %}
     </div>
 </div>
 

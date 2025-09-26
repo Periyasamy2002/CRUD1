@@ -1,24 +1,24 @@
 {% extends 'base.html' %}
 
-{% block content %}
-<div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-4">Live Order Tracking</h1>
+{% block title %}Live Track{% endblock %}
 
-    <div class="overflow-x-auto">
-        <table class="min-w-full bg-white border border-gray-200">
-            <thead>
-                <tr class="bg-gray-100">
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created At</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200">
-                {% for order in orders %}
-                <tr>
-                    <td class="px-6 py-4 whitespace-nowrap">{{ order.id }}</td>
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">Live Order Tracking</h2>
+<div class="grid gap-6 md:grid-cols-2">
+    {% for order in orders %}
+    <div class="bg-white rounded-lg shadow p-4">
+        <div class="font-semibold text-lg mb-2">{{ order.item }}</div>
+        <div>Qty: {{ order.qty }}</div>
+        <div>Price: {{ order.price }}</div>
+        <div>Status: <span class="font-semibold">{{ order.status }}</span></div>
+        <div>Date: {{ order.created_at|date:"Y-m-d H:i" }}</div>
+        <a href="{% url 'order_track' order.pk %}" class="btn-blue mt-3 inline-block text-center">Track</a>
+    </div>
+    {% empty %}
+    <p>No live orders found.</p>
+    {% endfor %}
+</div>
+{% endblock %}
                     <td class="px-6 py-4 whitespace-nowrap">{{ order.item }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ order.qty }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ order.status }}</td>
