@@ -39,6 +39,8 @@ urlpatterns = [
     path('special_menu/delete/<int:pk>/', views.special_menu_delete, name='special_menu_delete'),
 
     # --- Orders ---
+    path('order/manage_history/', views.manage_order_history, name='manage_order_history'),
+    path('order/food_table/', views.order_food_table, name='order_food_table'),
     path('order/history/', views.order_history, name='order_history'),
     path('order/delete/<int:pk>/', views.delete_order, name='delete_order'),
     path('order/live/', views.order_live, name='order_live'),

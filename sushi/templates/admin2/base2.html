@@ -1,20 +1,45 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>{% block title %}Hotel Management{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
     {% block head %}{% endblock %}
 </head>
-<body>
-    <header>
-        <!-- Admin navigation bar -->
+
+<body class="bg-gray-100 text-gray-800 font-sans">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg">
+        <nav class="container mx-auto flex justify-between items-center py-4 px-6 text-white">
+            <div class="text-xl font-bold tracking-wide">
+                Hotel Admin Panel
+            </div>
+            <div class="space-x-6">
+                <a href="{% url 'admin_manage' %}" class="hover:text-yellow-300 transition">Dashboard</a>
+                <a href="{% url 'special_menu' %}" class="hover:text-yellow-300 transition">special Menu</a>
+                <a href="{% url 'menuitem_list' %}" class="hover:text-yellow-300 transition">Add Menu</a>
+                <a href="{% url 'order_food_table' %}" class="hover:text-yellow-300 transition">Order food table </a>
+                <a href="{% url 'manage_order_history' %}" class="hover:text-yellow-300 transition">Manage history</a>
+                <a href="/" class="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-md transition">Back to Site</a>
+            </div>
+        </nav>
     </header>
-    <main>
-        {% block content %}{% endblock %}
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-10">
+        <div class="bg-white rounded-xl shadow-md p-6">
+            {% block content %}{% endblock %}
+        </div>
     </main>
-    <footer>
-        <!-- Admin footer -->
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-300 text-center py-4 mt-10">
+        <p class="text-sm">&copy; {{ year|default:2025 }} Hotel Management System. All rights reserved.</p>
     </footer>
+
 </body>
 </html>

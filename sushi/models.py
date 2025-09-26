@@ -96,3 +96,9 @@ class Order(models.Model):
 
     def __str__(self):
         return f"{self.item} x{self.qty} ({self.email})"
+
+# If you want to add a custom admin model, you can do so like this:
+# from django.contrib.auth.models import AbstractUser
+# class CustomAdminUser(AbstractUser):
+#     # Add custom fields if needed
+#     pass

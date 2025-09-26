@@ -173,7 +173,6 @@
                         </div>
                         <a href="{% url 'order_history' %}" class="block px-4 py-2 hover:bg-gray-100">Order History</a>
                         <a href="{% url 'order_live_track' %}" class="block px-4 py-2 hover:bg-gray-100">Live Track</a>
-                        <a href="{% url 'order_details' %}" class="block px-4 py-2 hover:bg-gray-100">Order Details</a>
                         <form method="post" action="{% url 'logout' %}" class="mt-2">
                             {% csrf_token %}
                             <button type="submit"

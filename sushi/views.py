@@ -122,20 +122,25 @@ def admin_login(request):
 # ---------------- Admin2 Login ----------------
 
 def admin2_login(request):
-    if request.method == 'POST':
-        username = request.POST.get('username', '').strip()
-        password = request.POST.get('password', '').strip()
-        if username == 'admin2002' and password == 'admin@oo2':
-            request.session['admin2_logged_in'] = True
+    if request.user.is_authenticated and getattr(request.user, "user_type", None) == "management":
+        return redirect('admin2_dashboard')
+    error = None
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
+        # Check user exists, is active, and is management type
+        if user is not None and getattr(user, "user_type", None) == 'management' and user.is_active:
+            auth_login(request, user)
             return redirect('admin2_dashboard')
         else:
-            return render(request, 'admin2_login.html', {'error': 'Invalid credentials'})
-    return render(request, 'admin2_login.html')
+            error = "Invalid username/password or not authorized."
+    return render(request, "admin2/admin2_login.html", {"error": error})
 
 def admin2_dashboard(request):
-    if not request.session.get('admin2_logged_in'):
+    if not request.user.is_authenticated or getattr(request.user, "user_type", None) != "management":
         return redirect('admin2_login')
-    return render(request, 'admin2.html')
+    return render(request, 'admin2/admin2.html')
 
 # ---------------- Admin Menu Management ----------------
 from django.shortcuts import render, redirect, get_object_or_404
@@ -157,7 +162,7 @@ def menuitem_list(request):
     # Also pass the categories for the dropdown in the form
     categories = MenuCategory.objects.all()
 
-    return render(request, 'menuitem_list.html', {
+    return render(request, 'admin2/menuitem_list.html', {
         'menuitems_by_category': dict(menuitems_by_category),
         'categories': categories
     })
@@ -199,6 +204,60 @@ def menuitem_delete(request, item_id):
         item.delete()
         return redirect('menuitem_list')
     return render(request, 'sushi/menuitem_confirm_delete.html', {'item': item})
+
+# ---------------- Special Menu Management ----------------
+
+@login_required
+def special_menu(request, pk=None):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    if pk:
+        item = get_object_or_404(SpecialMenu, pk=pk)
+    else:
+        item = None
+
+    if request.method == 'POST':
+        form = SpecialMenuForm(request.POST, request.FILES, instance=item)
+        if form.is_valid():
+            form.save()
+            return redirect('special_menu')
+    else:
+        form = SpecialMenuForm(instance=item)
+
+    special_menu_items = SpecialMenu.objects.all()
+    return render(request, 'admin2/special_menu.html', {
+        'form': form,
+        'item': item,
+        'special_menu_items': special_menu_items
+    })
+
+@login_required
+def special_menu_delete(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    item = get_object_or_404(SpecialMenu, pk=pk)
+    item.delete()
+    return redirect('special_menu')
+
+@login_required
+def special_menu_update(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    item = get_object_or_404(SpecialMenu, pk=pk)
+    if request.method == 'POST':
+        form = SpecialMenuForm(request.POST, request.FILES, instance=item)
+        if form.is_valid():
+            form.save()
+            return redirect('special_menu')
+    else:
+        form = SpecialMenuForm(instance=item)
+    special_menu_items = SpecialMenu.objects.all()
+    return render(request, 'admin2/special_menu.html', {
+        'form': form,
+        'item': item,
+        'special_menu_items': special_menu_items
+    })
 
 # ---------------- Category Management ----------------
 
@@ -301,26 +360,16 @@ def order_action(request, order_id):
 
 @login_required
 def order_history(request):
-    if not request.user.is_staff:
-        # If not staff, show only their own orders
-        orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
-    else:
-        # If staff, show all orders
-        orders = Order.objects.all().order_by('-created_at')
-
-    query = request.GET.get('q')
-    if query:
-        orders = orders.filter(email__icontains=query)
-
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
     return render(request, 'order_history.html', {'orders': orders})
 
 @login_required
-def delete_order(request, pk):
-    if not request.user.is_staff:
-        return redirect('admin_login')
-    order = get_object_or_404(Order, pk=pk)
-    order.delete()
-    return redirect('order_history')
+def order_detail(request, pk):
+    order = Order.objects.get(pk=pk, email=request.user.email)
+    return render(request, 'order_detail.html', {'order': order})
+
+# Alias for URL compatibility
+order_details = order_detail
 
 @login_required
 def order_live_track(request):
@@ -328,54 +377,9 @@ def order_live_track(request):
     return render(request, 'order_live_track.html', {'orders': orders})
 
 @login_required
-def order_details(request):
-    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
-    return render(request, 'oder_food_table.html', {'orders': orders})
-
-def admin_manage(request):
-    return render(request, 'adminmanage.html')
-
-# ---------------- Special Menu Management ----------------
-
-@login_required
-def special_menu(request, pk=None):
-    if not request.user.is_staff:
-        return redirect('admin_login')
-
-    if pk:
-        item = get_object_or_404(SpecialMenu, pk=pk)
-        form = SpecialMenuForm(instance=item)
-    else:
-        item = None
-        form = SpecialMenuForm()
-
-    if request.method == 'POST':
-        if pk:
-            form = SpecialMenuForm(request.POST, request.FILES, instance=item)
-        else:
-            form = SpecialMenuForm(request.POST, request.FILES)
-        
-        if form.is_valid():
-            form.save()
-            return redirect('special_menu')
-
-    special_menus = SpecialMenu.objects.all()
-    return render(request, 'special_menu.html', {
-        'special_menus': special_menus,
-        'form': form,
-        'item': item
-    })
-
-@login_required
-def special_menu_delete(request, pk):
-    if not request.user.is_staff:
-        return redirect('admin_login')
-        
-    item = get_object_or_404(SpecialMenu, pk=pk)
-    item.delete()
-    return redirect('special_menu')
-
-# ---------------- Order Live Management ----------------
+def order_track(request, pk):
+    order = Order.objects.get(pk=pk, email=request.user.email)
+    return render(request, 'order_track.html', {'order': order})
 
 @login_required
 def order_live(request):
@@ -397,8 +401,48 @@ def order_live(request):
             'image': image
         })
 
-    return render(request, 'order_live.html', {'orders_with_items': orders_with_items})
+def order_food_table(request):
+    return render(request, 'admin2/order_food_table.html')
 
+def manage_order_history(request):
+    return render(request, 'admin2/manage_order_history.html')
+
+# ---------------- API Views ----------------
+
+@csrf_exempt
+def search_menu_items_api(request):
+    query = request.GET.get('q', '')
+    if query:
+        menu_items = MenuItem.objects.filter(
+            Q(name__icontains=query) | Q(description__icontains=query)
+        ).values('id', 'name', 'description', 'image')
+        
+        results = []
+        for item in menu_items:
+            image_url = item['image'].url if item['image'] else None
+            results.append({
+                'id': item['id'],
+                'name': item['name'],
+                'description': item['description'],
+                'image_url': image_url,
+                'url': f'#menu-item-{item['id']}' # Anchor link to the item
+            })
+        return JsonResponse(results, safe=False)
+    return JsonResponse([], safe=False)
+
+def admin_manage(request):
+    # You can customize the context or template as needed
+    return render(request, 'adminmanage.html')
+
+@login_required
+def delete_order(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    order = get_object_or_404(Order, pk=pk)
+    if request.method == 'POST':
+        order.delete()
+        return redirect('order_live')
+    return render(request, 'order_confirm_delete.html', {'order': order})
 @login_required
 def update_order_status(request, pk, status):
     if not request.user.is_staff:
@@ -441,4 +485,18 @@ def search_menu_items_api(request):
             })
         return JsonResponse(results, safe=False)
     return JsonResponse([], safe=False)
+
+def admin_manage(request):
+    # You can customize the context or template as needed
+    return render(request, 'adminmanage.html')
+
+@login_required
+def delete_order(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    order = get_object_or_404(Order, pk=pk)
+    if request.method == 'POST':
+        order.delete()
+        return redirect('order_live')
+    return render(request, 'order_confirm_delete.html', {'order': order})
 
