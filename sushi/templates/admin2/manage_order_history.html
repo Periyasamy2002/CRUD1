@@ -1,2 +1,122 @@
-<h2>Manage Order History</h2>
-Welcome to the order history management page.
+{% extends 'admin2/base2.html' %}
+
+{% block content %}
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h2 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .table-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto; /* Ensures table is responsive */
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: middle;
+        }
+        th {
+            background-color: #f8f8f8;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #e9e9e9;
+        }
+        .status-form {
+            display: flex;
+            align-items: center;
+        }
+        .status-select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            margin-right: 10px;
+        }
+        .update-btn {
+            padding: 8px 12px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .update-btn:hover {
+            background-color: #45a049;
+        }
+        .status-pending { color: #ff9800; }
+        .status-confirmed { color: #4caf50; }
+        .status-on_the_way { color: #2196f3; }
+        .status-delivered { color: #8bc34a; }
+        .status-canceled { color: #f44336; }
+    </style>
+</head>
+<body>
+    <div class="table-container">
+        <h2>Manage Order History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Price</th>
+                    <th>Order Type</th>
+                    <th>Order Date</th>
+                    <th>Order Time</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Address</th>
+                    <th>Delivery</th>
+                    <th>Created At</th>
+                    <th>Status</th>
+                    
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>{{ order.id }}</td>
+                    <td>{{ order.item }}</td>
+                    <td>{{ order.qty }}</td>
+                    <td>{{ order.price }}</td>
+                    <td>{{ order.order_type }}</td>
+                    <td>{{ order.order_date|default_if_none:"" }}</td>
+                    <td>{{ order.order_time|default_if_none:"" }}</td>
+                    <td>{{ order.email }}</td>
+                    <td>{{ order.mobile }}</td>
+                    <td>{{ order.address }}</td>
+                    <td>{{ order.delivery }}</td>
+                    <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                       {{ order.status }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+{% endblock %}

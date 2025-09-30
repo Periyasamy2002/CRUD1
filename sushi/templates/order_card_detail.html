@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Order Details{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto bg-white rounded shadow p-6 mt-6">
+    <h2 class="text-2xl font-bold mb-4">Order Details</h2>
+
+    <!-- Order Information -->
+    <div class="mb-2"><b>Item:</b> {{ order.item }}</div>
+    <div class="mb-2"><b>Qty:</b> {{ order.qty }}</div>
+    <div class="mb-2"><b>Total:</b> {{ order.price|floatformat:2 }} CHF</div>
+    <div class="mb-2"><b>Address:</b> {{ order.address }}</div>
+    <div class="mb-2"><b>Ordered At:</b> {{ order.created_at|date:"d M Y H:i" }}</div>
+
+    <!-- Current Status -->
+    <div class="mb-4">
+        <p>Status: <span class="font-semibold text-green-600">{{ order.status }}</span></p>
+    </div>
+
+    <hr class="my-6">
+
+    <!-- Horizontal Order Status Timeline -->
+    <h3 class="font-semibold mb-4">Order Status</h3>
+    <div class="flex items-center justify-between w-full mt-4 relative">
+        {% for step in steps %}
+            <div class="flex-1 flex flex-col items-center relative">
+                <!-- Step Circle -->
+                <div class="w-10 h-10 flex items-center justify-center rounded-full
+                    {% if forloop.counter0 <= current_step_index %}
+                        bg-green-500 text-white
+                    {% else %}
+                        bg-gray-300 text-gray-600
+                    {% endif %} z-10">
+                    {% if forloop.counter0 < current_step_index %}
+                        <i class="fas fa-check"></i>
+                    {% else %}
+                        {{ forloop.counter }}
+                    {% endif %}
+                </div>
+
+                <!-- Step Label -->
+                <span class="mt-2 text-center text-sm
+                    {% if forloop.counter0 <= current_step_index %}
+                        text-green-600 font-semibold
+                    {% else %}
+                        text-gray-600
+                    {% endif %}">
+                    {{ step }}
+                    {% if forloop.counter0 == current_step_index %}
+                        <span class="text-xs text-green-700 font-bold">(Current)</span>
+                    {% endif %}
+                </span>
+
+                <!-- Connector Line -->
+                {% if not forloop.last %}
+                    <div class="absolute top-5 left-1/2 w-full h-0.5 bg-gray-300 -z-10"></div>
+                {% endif %}
+            </div>
+        {% endfor %}
+    </div>
+
+    <hr class="my-6">
+
+    <!-- Back Button -->
+    <a href="{% url 'order_card_list' %}"
+       class="mt-4 inline-block px-6 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+       Back to My Orders
+    </a>
+</div>
+{% endblock %}

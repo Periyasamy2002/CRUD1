@@ -19,13 +19,17 @@
                 <td class="px-4 py-2 border">{{ order.item }}</td>
                 <td class="px-4 py-2 border">{{ order.qty }}</td>
                 <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
-                <td class="px-4 py-2 border">{{ order.status }}</td>
+                <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
+                    {{ order.status }}
+                </td>
                 <td class="px-4 py-2 border">
-                    <form method="post" action="{% url 'order_action' order.id %}" class="inline">
+                    <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
                         {% csrf_token %}
-                        <button name="action" value="get" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Get</button>
-                        <button name="action" value="out" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Out</button>
-                        <button name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel</button>
+                        <button type="submit" name="action" value="accept" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Accept Order</button>
+                        <button type="submit" name="action" value="making" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Making Order</button>
+                        <button type="submit" name="action" value="collect" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Collect the Order</button>
+                        <button type="submit" name="action" value="delivered" class="bg-purple-500 text-white px-2 py-1 rounded text-xs">Deliver Order</button>
+                        <button type="submit" name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel Order</button>
                     </form>
                 </td>
             </tr>
@@ -37,4 +41,5 @@
         </tbody>
     </table>
 </div>
+
 {% endblock %}
