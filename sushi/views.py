@@ -359,6 +359,31 @@ def order_action(request, order_id):
     return redirect('order_details')
 
 @login_required
+def order_action_admin(request, order_id):
+    if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
+        return redirect('admin2_login')
+    order = get_object_or_404(Order, id=order_id)
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'accept':
+            order.status = 'Accepted'
+            order.save()
+        elif action == 'making':
+            order.status = 'Making'
+            order.save()
+        elif action == 'collect':
+            order.status = 'Ready to Collect'
+            order.save()
+        elif action == 'delivered':
+            order.status = 'Delivered'
+            order.save()
+        elif action == 'cancel':
+            order.status = 'Cancelled'
+            order.save()
+            return redirect('order_food_table')
+    return redirect('order_food_table')
+
+@login_required
 def order_history(request):
     orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
     return render(request, 'order_history.html', {'orders': orders})
@@ -402,10 +427,12 @@ def order_live(request):
         })
 
 def order_food_table(request):
-    return render(request, 'admin2/order_food_table.html')
+    orders = Order.objects.exclude(status__in=['Delivered', 'Canceled']).order_by('created_at')
+    return render(request, 'admin2/order_food_table.html', {'orders': orders})
 
 def manage_order_history(request):
-    return render(request, 'admin2/manage_order_history.html')
+    orders = Order.objects.all().order_by('-created_at')
+    return render(request, 'admin2/manage_order_history.html', {'orders': orders})
 
 # ---------------- API Views ----------------
 
@@ -432,7 +459,7 @@ def search_menu_items_api(request):
 
 def admin_manage(request):
     # You can customize the context or template as needed
-    return render(request, 'adminmanage.html')
+    return render(request, 'admin2/adminmanage.html')
 
 @login_required
 def delete_order(request, pk):
@@ -444,59 +471,89 @@ def delete_order(request, pk):
         return redirect('order_live')
     return render(request, 'order_confirm_delete.html', {'order': order})
 @login_required
-def update_order_status(request, pk, status):
+def update_order_status(request, pk):
     if not request.user.is_staff:
         return redirect('admin_login')
 
     order = get_object_or_404(Order, pk=pk)
-    order.status = status
-    order.save()
+    if request.method == 'POST':
+        status = request.POST.get('status')
+        if status:
+            order.status = status
+            order.save()
 
-    # Send email notification
-    subject = f'Your order #{order.id} has been {status}'
-    message = f'Hi, your order for {order.item} has been {status}.'
+            # Send email notification
+            subject = f'Your order #{order.id} has been {status}'
+            message = f'Hi, your order for {order.item} has been {status}.'
+            try:
+                send_mail(subject, message, 'saranvignesh55@gmail.com', [order.email])
+                messages.success(request, f'Order #{order.id} updated to {status} and notification sent.')
+            except Exception as e:
+                messages.error(request, f'Order status updated, but failed to send notification. Error: {e}')
+
+    return redirect('manage_order_history')
+
+# ---------------- API Views ----------------
+
+@csrf_exempt
+def search_menu_items_api(request):
+    query = request.GET.get('q', '')
+    if query:
+        menu_items = MenuItem.objects.filter(
+            Q(name__icontains=query) | Q(description__icontains=query)
+        ).values('id', 'name', 'description', 'image')
+        
+        results = []
+        for item in menu_items:
+            image_url = item['image'].url if item['image'] else None
+            results.append({
+                'id': item['id'],
+                'name': item['name'],
+                'description': item['description'],
+                'image_url': image_url,
+                'url': f'#menu-item-{item['id']}' # Anchor link to the item
+            })
+        return JsonResponse(results, safe=False)
+    return JsonResponse([], safe=False)
+
+
+
+@login_required
+def delete_order(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    order = get_object_or_404(Order, pk=pk)
+    if request.method == 'POST':
+        order.delete()
+        return redirect('order_live')
+    return render(request, 'order_confirm_delete.html', {'order': order})
+
+@login_required
+def order_card_list(request):
+    # Show all orders for the logged-in user as cards
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
+    return render(request, 'order_card_list.html', {'orders': orders})
+
+@login_required
+def order_card_detail(request, pk):
+    # Show details and live status/actions for a single order
+    order = get_object_or_404(Order, pk=pk, email=request.user.email)
+    steps = [
+        "Accepted",
+        "Making",
+        "Ready to Collect",
+        "Delivered",
+        "Cancelled"
+    ]
+    # Find the index of the current status in steps, default to 0 if not found
     try:
-        send_mail(subject, message, 'saranvignesh55@gmail.com', [order.email])
-        messages.success(request, f'Order #{order.id} updated to {status} and notification sent.')
-    except Exception as e:
-        messages.error(request, f'Order status updated, but failed to send notification. Error: {e}')
-
-    return redirect('order_live')
-
-# ---------------- API Views ----------------
-
-@csrf_exempt
-def search_menu_items_api(request):
-    query = request.GET.get('q', '')
-    if query:
-        menu_items = MenuItem.objects.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        ).values('id', 'name', 'description', 'image')
-        
-        results = []
-        for item in menu_items:
-            image_url = item['image'].url if item['image'] else None
-            results.append({
-                'id': item['id'],
-                'name': item['name'],
-                'description': item['description'],
-                'image_url': image_url,
-                'url': f'#menu-item-{item['id']}' # Anchor link to the item
-            })
-        return JsonResponse(results, safe=False)
-    return JsonResponse([], safe=False)
-
-def admin_manage(request):
-    # You can customize the context or template as needed
-    return render(request, 'adminmanage.html')
-
-@login_required
-def delete_order(request, pk):
-    if not request.user.is_staff:
-        return redirect('admin_login')
-    order = get_object_or_404(Order, pk=pk)
+        current_step_index = steps.index(order.status)
+    except ValueError:
+        current_step_index = 0
     if request.method == 'POST':
-        order.delete()
-        return redirect('order_live')
-    return render(request, 'order_confirm_delete.html', {'order': order})
-
+        new_status = request.POST.get('status')
+        if new_status and new_status in steps:
+            order.status = new_status
+            order.save()
+            current_step_index = steps.index(order.status)
+    return render(request, 'order_card_detail.html', {'order': order, 'steps': steps, 'current_step_index': current_step_index})

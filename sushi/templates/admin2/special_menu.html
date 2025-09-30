@@ -25,7 +25,7 @@
         </tr>
     </thead>
     <tbody>
-        {% for menu in special_menus %}
+        {% for menu in special_menu_items %}
         <tr>
             <td>{% if menu.image %}<img src="{{ menu.image.url }}" alt="{{ menu.title }}" width="100">{% endif %}</td>
             <td>{{ menu.title }}</td>

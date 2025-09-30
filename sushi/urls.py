@@ -44,11 +44,14 @@ urlpatterns = [
     path('order/history/', views.order_history, name='order_history'),
     path('order/delete/<int:pk>/', views.delete_order, name='delete_order'),
     path('order/live/', views.order_live, name='order_live'),
-    path('order/update_status/<int:pk>/<str:status>/', views.update_order_status, name='update_order_status'),
+    path('order/update_status/<int:pk>/', views.update_order_status, name='update_order_status'),
     path('order/live-track/', views.order_live_track, name='order_live_track'),
     path('order/details/', views.order_details, name='order_details'),
     path('order/submit/', views.order_submit, name='order_submit'),
     path('order/<int:order_id>/action/', views.order_action, name='order_action'),
+    path('order/cards/', views.order_card_list, name='order_card_list'),
+    path('order/cards/<int:pk>/', views.order_card_detail, name='order_card_detail'),
+    path('order/admin_action/<int:order_id>/', views.order_action_admin, name='order_action_admin'),
 
     # --- API ---
     path('api/search_menu_items/', views.search_menu_items_api, name='search_menu_items_api'),

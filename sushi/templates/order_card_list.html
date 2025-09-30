@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}My Orders{% endblock %}
+{% block content %}
+<h2 class="text-2xl font-bold mb-4">My Orders</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for order in orders %}
+    <div class="border rounded-lg shadow p-4 bg-white hover:shadow-lg transition">
+        <h3 class="font-semibold text-lg mb-2">{{ order.item }}</h3>
+        <p>Qty: {{ order.qty }}</p>
+        <p>Total: {{ order.price|floatformat:2 }} CHF</p>
+        <p>Status: <span class="font-semibold">{{ order.status }}</span></p>
+        <a href="{% url 'order_card_detail' order.pk %}" class="mt-2 inline-block bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">View Details</a>
+    </div>
+    {% empty %}
+    <p>No orders found.</p>
+    {% endfor %}
+</div>
+{% endblock %}
