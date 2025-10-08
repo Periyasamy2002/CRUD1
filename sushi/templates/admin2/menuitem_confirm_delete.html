@@ -1,0 +1,10 @@
+{% extends 'admin2/base2.html' %}
+{% block content %}
+<h2>Delete Menu Item</h2>
+<p>Are you sure you want to delete "{{ item.name }}"?</p>
+<form method="POST">
+    {% csrf_token %}
+    <button type="submit">Delete</button>
+    <a href="{% url 'menuitem_list' %}">Cancel</a>
+</form>
+{% endblock %}

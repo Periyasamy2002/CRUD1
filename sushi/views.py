@@ -150,21 +150,42 @@ from .models import MenuItem, MenuCategory
 
 # ---------------- MenuItem Management ----------------
 
-from collections import defaultdict
-
 def menuitem_list(request):
-    # Admin management page (uses base2.html)
+    from collections import defaultdict
+    from django.core.files.images import get_image_dimensions
+    from django.core.exceptions import ValidationError
     menuitems = MenuItem.objects.select_related('category').all()
     menuitems_by_category = defaultdict(list)
     for item in menuitems:
         menuitems_by_category[item.category].append(item)
-    
-    # Also pass the categories for the dropdown in the form
     categories = MenuCategory.objects.all()
+
+    error_message = None
+
+    if request.method == 'POST':
+        form = MenuItemForm(request.POST, request.FILES)
+        if 'image' in request.FILES:
+            image_file = request.FILES['image']
+            try:
+                # Try to get image dimensions to validate image
+                get_image_dimensions(image_file)
+            except Exception:
+                form.add_error('image', 'Upload a valid image. The file you uploaded was either not an image or a corrupted image.')
+        if form.is_valid():
+            form.save()
+            return redirect('menuitem_list')
+        else:
+            # If image error, show error message
+            if form.errors.get('image'):
+                error_message = form.errors['image']
+    else:
+        form = MenuItemForm()
 
     return render(request, 'admin2/menuitem_list.html', {
         'menuitems_by_category': dict(menuitems_by_category),
-        'categories': categories
+        'categories': categories,
+        'form': form,
+        'error_message': error_message
     })
 
 def menuitem_create(request):
@@ -198,12 +219,12 @@ def menuitem_edit(request, item_id):
         return redirect('menuitem_list')
     return render(request, 'admin/menuitem_form.html', {'item': item, 'categories': categories})
 
-def menuitem_delete(request, item_id):
-    item = get_object_or_404(MenuItem, id=item_id)
+def menuitem_delete(request, pk):
+    item = get_object_or_404(MenuItem, pk=pk)
     if request.method == 'POST':
         item.delete()
         return redirect('menuitem_list')
-    return render(request, 'sushi/menuitem_confirm_delete.html', {'item': item})
+    return render(request, 'admin2/menuitem_confirm_delete.html', {'item': item})
 
 # ---------------- Special Menu Management ----------------
 
@@ -264,13 +285,22 @@ def special_menu_update(request, pk):
 @csrf_exempt
 def category_create(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        added_by = request.POST.get('added_by', 'admin')
-        if name:
-            MenuCategory.objects.create(name=name, added_by=added_by)
-            return JsonResponse({'success': True})
-        return JsonResponse({'success': False, 'error': 'Missing fields'})
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+        # Accept both AJAX and regular POST
+        category_name = request.POST.get('category_name') or request.POST.get('name')
+        username = request.POST.get('username') or request.POST.get('added_by', 'admin')
+        if category_name:
+            MenuCategory.objects.create(name=category_name, added_by=username)
+            # If AJAX, return JSON
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            # Otherwise, redirect back
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'error': 'Missing fields'})
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'error': 'Invalid request'})
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 def category_edit(request, pk):
     category = get_object_or_404(MenuCategory, pk=pk)
@@ -289,7 +319,7 @@ def category_delete(request, pk):
 
 def menuitem_view(request, pk):
     item = get_object_or_404(MenuItem, pk=pk)
-    return render(request, 'menuitem_view.html', {'item': item})
+    return render(request, 'admin2/menuitem_view.html', {'item': item})
 
 def menuitem_add(request):
     if request.method == 'POST':
@@ -299,7 +329,7 @@ def menuitem_add(request):
             return redirect('menuitem_list')
     else:
         form = MenuItemForm()
-    return render(request, 'menuitem_add.html', {'form': form})
+    return render(request, 'admin2/menuitem_add.html', {'form': form})
 
 def menuitem_update(request, pk):
     item = get_object_or_404(MenuItem, pk=pk)
@@ -310,7 +340,7 @@ def menuitem_update(request, pk):
             return redirect('menuitem_list')
     else:
         form = MenuItemForm(instance=item)
-    return render(request, 'menuitem_add.html', {'form': form})
+    return render(request, 'admin2/menuitem_add.html', {'form': form})
 
 # ---------------- Order Processing ----------------
 

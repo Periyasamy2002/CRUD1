@@ -4,7 +4,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Sushi Naruto{% endblock %}</title>
+    <title>{% block title %} SUSHI NARUTO MOMOS AND MORE{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <!-- Tailwind CSS -->
@@ -12,7 +12,7 @@
     <link rel="icon" href="{% static 'images/favicon.ico' %}">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="Sushi Naruto - Allschwil's Best Sushi & Asian Cuisine">
+    <meta property="og:title" content=" SUSHI NARUTO MOMOS AND MORE - Allschwil's Best Sushi & Asian Cuisine">
     <meta property="og:description"
         content="Authentic sushi, Asian food, and takeaway in Allschwil, Switzerland. Reserve a table or order online!">
     <meta property="og:image" content="{% static 'images/restaurant_og.jpg' %}">
@@ -79,12 +79,26 @@
             }
         }
 
+        /* Ensure restaurant hero image is always visible on mobile */
+        @media (max-width: 640px) {
+            .restaurant-hero-img {
+                display: block !important;
+                max-width: 90vw !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+            }
+            .reste {
+                display: none !important;
+            }
+        }
+
         /* Responsive fixes */
         @media (max-width: 640px) {
             nav ul {
                 flex-direction: column;
                 gap: 0.5rem;
             }
+
 
             .md\:w-1\/2 {
                 width: 100% !important;
@@ -131,9 +145,9 @@
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <!-- Logo -->
             <a href="{% url 'home' %}" class="flex items-center space-x-3 cursor-pointer">
-                <img src="{% static 'images/logo.jpg' %}" alt="Sushi Naruto Logo" class=" shadow 
+                <img src="{% static 'images/logo.jpg' %}" alt=" SUSHI NARUTO MOMOS AND MORE Logo" class=" shadow 
             h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 xl:h-16 xl:w-16">
-                <span class="text-xl font-bold text-red-600 hover:text-red-800 transition">Sushi Naruto</span>
+                <span class="text-xl font-bold text-red-600 hover:text-red-800 transition"> SUSHI NARUTO MOMOS AND MORE</span>
             </a>
 
             <!-- Hamburger -->
@@ -198,17 +212,17 @@
     <!-- HERO -->
     <section class="relative bg-gradient-to-r from-red-50 to-white py-12 mb-8">
         <div class="container mx-auto px-4 flex flex-col md:flex-row items-center">
-            <div class="md:w-1/2 mb-6 md:mb-0">
-                <h1 class="text-4xl font-extrabold text-red-700 mb-4">Welcome to Sushi Naruto</h1>
+            <div class="w-full md:w-1/2 mb-6 md:mb-0 flex flex-col items-center md:items-start text-center md:text-left">
+                <h1 class="text-4xl font-extrabold text-red-700 mb-4">Welcome to SUSHI NARUTO MOMOS AND MORE</h1>
                 <p class="text-lg text-gray-700 mb-4">Authentic Japanese cuisine, fresh sushi, and Asian specialties in
                     the heart of Allschwil. Dine in, reserve a table, or order for takeaway!</p>
                 <a href="{% url 'reservation' %}"
                     class="inline-block bg-red-600 text-white px-6 py-2 rounded shadow hover:bg-red-700 transition">Reserve
                     a Table</a>
             </div>
-            <div class="md:w-1/2 flex justify-center">
-                <img src="{% static 'images/restaurant_hero.jpg' %}" alt="Sushi Naruto Restaurant"
-                    class="rounded-lg shadow-lg w-full max-w-md fade-in">
+            <div class="w-full md:w-1/2 flex justify-center items-center reste">
+                <img src="{% static 'images/restaurant_hero.jpg' %}" alt="SUSHI NARUTO MOMOS AND MORE Restaurant"
+                    class="restaurant-hero-img rounded-lg shadow-lg w-full max-w-xs sm:max-w-md fade-in mx-auto">
             </div>
         </div>
     </section>
@@ -259,10 +273,8 @@
             </div>
 
             <div class="mt-6 border-t pt-4 text-center text-xs md:col-span-4">
-                <p>Chinese Food Takeaway Allschwil · Sushi Takeaway Allschwil</p>
-                <p>Supported by: <a href="https://www.clickandfood.eu" target="_blank"
-                        class="text-red-500 hover:underline">Sparissimo Food Ltd.</a> | info@clickandfood.ch | +41 800
-                    556 150 | +49 69 710 475 168</p>
+                <p>Copyrights © 2025 All Rights Reserved by SUSHI NARUTO MOMOS AND
+          MORE</p>
             </div>
         </div>
     </footer>
