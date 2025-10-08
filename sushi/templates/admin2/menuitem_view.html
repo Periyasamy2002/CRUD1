@@ -1,0 +1,10 @@
+{% extends 'admin2/base2.html' %}
+{% block content %}
+<h2>{{ item.name }}</h2>
+<p><b>Description:</b> {{ item.description }}</p>
+<p><b>Price:</b> {{ item.price }} CHF</p>
+{% if item.image %}
+    <img src="{{ item.image.url }}" alt="{{ item.name }}" style="max-width:200px;">
+{% endif %}
+<a href="{% url 'menuitem_list' %}">Back to Menu Items</a>
+{% endblock %}

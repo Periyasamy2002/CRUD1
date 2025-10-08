@@ -1,0 +1,10 @@
+{% extends 'admin2/base2.html' %}
+{% block content %}
+<h2>{% if form.instance.pk %}Edit{% else %}Add{% endif %} Menu Item</h2>
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{% if form.instance.pk %}Update{% else %}Add{% endif %} Menu Item</button>
+</form>
+<a href="{% url 'menuitem_list' %}">Back to Menu Items</a>
+{% endblock %}

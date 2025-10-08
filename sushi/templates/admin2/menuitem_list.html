@@ -8,10 +8,25 @@
 <button id="add-category-btn" onclick="openCategoryModal()">+ Add Category</button>
 
 <!-- Modal for Add Category -->
-<div id="categoryModal">
+<div id="categoryModal" style="display:none;">
     <div class="modal-content">
         <button class="close" onclick="closeCategoryModal()">✕</button>
-        <h3 style="text-align: center;">Add New Category</h3>
+        <h3 style="text-align: center;">Categories</h3>
+        <ul>
+            {% for category in categories %}
+                <li>
+                    <strong>{{ category.name }}</strong>
+                    {% if category.description %}
+                        <br><small>{{ category.description }}</small>
+                    {% endif %}
+                    <br><small>Added by: {{ category.added_by }}</small>
+                </li>
+            {% empty %}
+                <li>No categories found.</li>
+            {% endfor %}
+        </ul>
+        <hr>
+        <h4>Add New Category</h4>
         <form method="POST" action="{% url 'category_create' %}">
             {% csrf_token %}
             <label for="category_name">Category Name:</label>
@@ -24,27 +39,32 @@
 </div>
 
 <!-- Add Menu Item Form -->
-<form method="POST" enctype="multipart/form-data" action="{% url 'menuitem_add' %}">
+<form method="POST" enctype="multipart/form-data" action="{% url 'menuitem_list' %}">
     {% csrf_token %}
-    <label for="category">Category:</label>
-    <select name="category" id="category" required>
-        {% for category in menuitems_by_category.keys %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-        {% endfor %}
-    </select>
-
-    <label for="name">Name:</label>
-    <input type="text" name="name" id="name" required>
-
-    <label for="description">Description:</label>
-    <textarea name="description" id="description"></textarea>
-
-    <label for="price">Price (CHF):</label>
-    <input type="number" name="price" id="price" step="0.01" required>
-
-    <label for="image">Image:</label>
-    <input type="file" name="image" id="image">
-
+    {% if error_message %}
+        <div style="color: red;">{{ error_message }}</div>
+    {% endif %}
+    {{ form.non_field_errors }}
+    <div>
+        {{ form.category.label_tag }} {{ form.category }}
+        {{ form.category.errors }}
+    </div>
+    <div>
+        {{ form.name.label_tag }} {{ form.name }}
+        {{ form.name.errors }}
+    </div>
+    <div>
+        {{ form.description.label_tag }} {{ form.description }}
+        {{ form.description.errors }}
+    </div>
+    <div>
+        {{ form.price.label_tag }} {{ form.price }}
+        {{ form.price.errors }}
+    </div>
+    <div>
+        {{ form.image.label_tag }} {{ form.image }}
+        {{ form.image.errors }}
+    </div>
     <button type="submit">Add Menu Item</button>
 </form>
 
@@ -70,7 +90,7 @@
                     <td>{{ item.price }}</td>
                     <td>
                         {% if item.image %}
-                            <img src="{{ item.image.url }}" alt="{{ item.name }}">
+                            <img src="{{ item.image.url }}" alt="{{ item.name }}" style="max-width:80px;max-height:80px;">
                         {% else %}
                             No image
                         {% endif %}
@@ -78,18 +98,16 @@
                     <td class="action-buttons">
                         <!-- View Button -->
                         <a href="{% url 'menuitem_view' item.id %}">
-                            <button class="btn-view">View</button>
+                            <button class="btn-view" type="button">View</button>
                         </a>
-
                         <!-- Edit Button -->
                         <a href="{% url 'menuitem_update' item.id %}">
-                            <button class="btn-edit">Edit</button>
+                            <button class="btn-edit" type="button">Edit</button>
                         </a>
-
                         <!-- Delete Button -->
-                        <form method="POST" action="{% url 'menuitem_delete' item.id %}" style="display:inline;">
+                        <form method="POST" action="{% url 'menuitem_delete' item.id %}" style="display:inline-block; width: 70px; padding: 0;">
                             {% csrf_token %}
-                            <button class="btn-delete" onclick="return confirm('Delete this item?')">Delete</button>
+                            <button class="btn-edit" type="submit" onclick="return confirm('Delete this item?')">Delete</button>
                         </form>
                     </td>
                 </tr>
@@ -105,10 +123,8 @@
     function openCategoryModal() {
         document.getElementById('categoryModal').style.display = 'block';
     }
-
     function closeCategoryModal() {
         document.getElementById('categoryModal').style.display = 'none';
     }
 </script>
-
 {% endblock %}
