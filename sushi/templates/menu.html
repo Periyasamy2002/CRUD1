@@ -283,21 +283,35 @@
                     <div class="menu-card-content">
                         <div class="menu-card-title">{{ item.name }}</div>
                         <div class="menu-card-desc" x-data="{ expanded: false }"
-                            :class="expanded ? 'menu-card-desc-expanded' : ''" @click="expanded = !expanded" x-init="
-                                if(window.innerWidth <= 768) {
-                                    let el = $el;
-                                    if (el.scrollWidth > el.clientWidth) {
-                                        el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more...</span>');
-                                    }
+                            :class="expanded ? 'menu-card-desc-expanded' : ''"
+                            @click="expanded = !expanded"
+                            x-init="
+                                let el = $el;
+                                let fullText = el.innerText.trim();
+                                let words = fullText.split(/\s+/);
+                                if (words.length > 3) {
+                                    el.setAttribute('data-full', fullText);
+                                    el.innerText = words.slice(0,3).join(' ') + '...';
+                                    el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
                                 }
-                            ">
+                            "
+                            x-effect="
+                                if (expanded && $el.hasAttribute('data-full')) {
+                                    $el.innerText = $el.getAttribute('data-full');
+                                } else if ($el.hasAttribute('data-full')) {
+                                    let words = $el.getAttribute('data-full').split(/\s+/);
+                                    $el.innerText = words.slice(0,3).join(' ') + '...';
+                                    $el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
+                                }
+                            "
+                        >
                             {{ item.description }}
                         </div>
                         <div class="menu-card-footer">
                             <div class="menu-card-price">{{ item.price }} CHF</div>
                             <button
                                 class="bg-red-600 text-white rounded menu-card-order-btn hover:bg-red-700 transition"
-                                @click="openOrderModal('{{ item.name|escapejs }}', {{ item.price }})">
+                                @click.prevent="$nextTick(() => openOrderModal('{{ item.name|escapejs }}', {{ item.price }}))">
                                 Order
                             </button>
                         </div>
@@ -458,6 +472,7 @@
             loading: false,
             error: '',
             successMsg: 'Order placed successfully!',
+
             openOrderModal(name, price) {
                 this.open = true;
                 this.step = 1;
@@ -475,9 +490,11 @@
                 this.error = '';
                 this.successMsg = 'Order placed successfully!';
             },
+
             nextStep() {
                 this.step = 2;
             },
+
             validateAndNext() {
                 this.error = '';
                 if (!this.email || !this.mobile || !this.address || !this.delivery) {
@@ -490,9 +507,11 @@
                 }
                 this.step = 3;
             },
+
             submitOrder() {
                 this.error = '';
                 this.loading = true;
+
                 fetch('/order/submit/', {
                     method: 'POST',
                     headers: {
@@ -527,6 +546,7 @@
                         this.error = 'Order failed. Try again.';
                     });
             },
+
             reset() {
                 this.open = false;
                 this.step = 1;
@@ -551,99 +571,100 @@
         const searchInput = document.getElementById('menuSearchInput');
         const searchResultsDropdown = document.getElementById('searchResultsDropdown');
 
-        searchInput.addEventListener('input', function () {
-            const query = this.value.trim();
+        if (searchInput && searchResultsDropdown) {
+            searchInput.addEventListener('input', function () {
+                const query = this.value.trim();
 
-            if (query.length < 2) { // Start searching after 2 characters
-                searchResultsDropdown.classList.add('hidden');
-                return;
-            }
-
-            fetch(`/api/search_menu_items/?q=${query}`)
-                .then(response => response.json())
-                .then(data => {
-                    searchResultsDropdown.innerHTML = ''; // Clear previous results
-                    if (data.length > 0) {
-                        data.forEach(item => {
-                            const resultCard = document.createElement('a');
-                            resultCard.href = item.url;
-                            resultCard.classList.add('block', 'p-4', 'hover:bg-gray-100', 'border-b', 'cursor-pointer');
-
-                            let imageHtml = '';
-                            if (item.image_url) {
-                                imageHtml = `<img src="${item.image_url}" alt="${item.name}" class="w-16 h-16 object-cover rounded-md mr-4">`;
-                            } else {
-                                imageHtml = `<div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>`;
-                            }
-
-                            resultCard.innerHTML = `
-                            <div class="flex items-center">
-                                ${imageHtml}
-                                <div>
-                                    <div class="font-semibold text-gray-800">${item.name}</div>
-                                    <div class="text-sm text-gray-600">${item.description}</div>
-                                </div>
-                            </div>
-                        `;
-
-                            resultCard.addEventListener('click', function (e) {
-                                e.preventDefault();
-                                const targetElement = document.querySelector(item.url);
-                                if (targetElement) {
-                                    targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                    // Highlight the card
-                                    targetElement.classList.add('transition', 'duration-500', 'ease-in-out', 'ring-2', 'ring-red-500', 'ring-offset-2');
-                                    setTimeout(() => {
-                                        targetElement.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
-                                    }, 2000);
-                                }
-                                searchResultsDropdown.classList.add('hidden');
-                                searchInput.value = '';
-                            });
-
-                            searchResultsDropdown.appendChild(resultCard);
-                        });
-                        searchResultsDropdown.classList.remove('hidden');
-                    } else {
-                        searchResultsDropdown.innerHTML = '<div class="p-4 text-gray-500">No results found.</div>';
-                        searchResultsDropdown.classList.remove('hidden');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching search results:', error);
+                if (query.length < 2) {
                     searchResultsDropdown.classList.add('hidden');
-                });
-        });
+                    return;
+                }
 
+                fetch(`/api/search_menu_items/?q=${encodeURIComponent(query)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        searchResultsDropdown.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                const resultCard = document.createElement('a');
+                                resultCard.href = item.url;
+                                resultCard.classList.add('block', 'p-4', 'hover:bg-gray-100', 'border-b', 'cursor-pointer');
+
+                                const imageHtml = item.image_url
+                                    ? `<img src="${item.image_url}" alt="${item.name}" class="w-16 h-16 object-cover rounded-md mr-4">`
+                                    : `<div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>`;
+
+                                resultCard.innerHTML = `
+                                    <div class="flex items-center">
+                                        ${imageHtml}
+                                        <div>
+                                            <div class="font-semibold text-gray-800">${item.name}</div>
+                                            <div class="text-sm text-gray-600">${item.description || ''}</div>
+                                        </div>
+                                    </div>
+                                `;
+
+                                resultCard.addEventListener('click', function (e) {
+                                    e.preventDefault();
+                                    const targetElement = document.querySelector(item.url);
+                                    if (targetElement) {
+                                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        targetElement.classList.add('transition', 'duration-500', 'ease-in-out', 'ring-2', 'ring-red-500', 'ring-offset-2');
+                                        setTimeout(() => {
+                                            targetElement.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
+                                        }, 2000);
+                                    }
+                                    searchResultsDropdown.classList.add('hidden');
+                                    searchInput.value = '';
+                                });
+
+                                searchResultsDropdown.appendChild(resultCard);
+                            });
+                            searchResultsDropdown.classList.remove('hidden');
+                        } else {
+                            searchResultsDropdown.innerHTML = '<div class="p-4 text-gray-500">No results found.</div>';
+                            searchResultsDropdown.classList.remove('hidden');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching search results:', error);
+                        searchResultsDropdown.classList.add('hidden');
+                    });
+            });
+        }
+
+        // Category dropdown handling
         const categoryButton = document.getElementById('categoryButton');
         const categoryDropdown = document.getElementById('categoryDropdown');
         const categoryLinks = document.querySelectorAll('#categoryDropdown [data-category]');
 
-        categoryButton.addEventListener('click', function (e) {
-            e.stopPropagation();
-            categoryDropdown.classList.toggle('hidden');
-        });
-
-        categoryLinks.forEach(link => {
-            link.addEventListener('click', function () {
-                const categorySlug = this.dataset.category;
-                const categoryElement = document.getElementById(`category-${categorySlug}`);
-                if (categoryElement) {
-                    categoryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-                categoryDropdown.classList.add('hidden');
+        if (categoryButton && categoryDropdown) {
+            categoryButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                categoryDropdown.classList.toggle('hidden');
             });
-        });
 
-        // Hide dropdowns when clicking outside
-        document.addEventListener('click', function (e) {
-            if (!searchInput.contains(e.target) && !searchResultsDropdown.contains(e.target)) {
-                searchResultsDropdown.classList.add('hidden');
-            }
-            if (!categoryButton.contains(e.target) && !categoryDropdown.contains(e.target)) {
-                categoryDropdown.classList.add('hidden');
-            }
-        });
+            categoryLinks.forEach(link => {
+                link.addEventListener('click', function () {
+                    const categorySlug = this.dataset.category;
+                    const categoryElement = document.getElementById(`category-${categorySlug}`);
+                    if (categoryElement) {
+                        categoryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    categoryDropdown.classList.add('hidden');
+                });
+            });
+
+            document.addEventListener('click', function (e) {
+                if (!searchInput?.contains(e.target) && !searchResultsDropdown?.contains(e.target)) {
+                    searchResultsDropdown?.classList.add('hidden');
+                }
+                if (!categoryButton.contains(e.target) && !categoryDropdown.contains(e.target)) {
+                    categoryDropdown.classList.add('hidden');
+                }
+            });
+        }
     });
 </script>
+
 {% endblock %}
