@@ -7,6 +7,7 @@
     <title>{% block title %}Hotel Management{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/auth.css' %}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     {% block head %}{% endblock %}
 </head>
 
@@ -14,17 +15,62 @@
 
     <!-- Header -->
     <header class="bg-gradient-to-r from-indigo-600 to-purple-600 shadow-lg">
-        <nav class="container mx-auto flex justify-between items-center py-4 px-6 text-white">
+        <nav class="container mx-auto flex justify-between items-center py-4 px-6 text-white relative">
             <div class="text-xl font-bold tracking-wide">
-                SUSHI NARUTO MOMOS AND MORE Hotel Admin Panel
+                SUSHI NARUTO MOMOS AND MORE Admin Panel
             </div>
-            <div class="space-x-6">
-                <a href="{% url 'admin_manage' %}" class="hover:text-yellow-300 transition">Dashboard</a>
-                <a href="{% url 'special_menu' %}" class="hover:text-yellow-300 transition">special Menu</a>
-                <a href="{% url 'menuitem_list' %}" class="hover:text-yellow-300 transition">Add Menu</a>
-                <a href="{% url 'order_food_table' %}" class="hover:text-yellow-300 transition">Order food table </a>
-                <a href="{% url 'manage_order_history' %}" class="hover:text-yellow-300 transition">Manage history</a>
-                <a href="/" class="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-md transition">Back to Site</a>
+
+            <!-- Mobile Menu Button -->
+            <button id="menu-btn" class="lg:hidden block text-white focus:outline-none text-2xl">
+                ☰
+            </button>
+
+            <!-- Navbar Links -->
+            <div id="menu"
+                class="hidden lg:flex flex-col lg:flex-row lg:space-x-6 space-y-2 lg:space-y-0 absolute lg:static top-16 left-0 w-full lg:w-auto bg-indigo-700 lg:bg-transparent p-4 lg:p-0 z-50 rounded-lg">
+
+                <!-- Dashboard -->
+                <a href="{% url 'admin_manage' %}" class="hover:text-yellow-300 transition font-medium">Dashboard</a>
+
+                <!-- Menu Details Dropdown -->
+                <div class="group relative">
+                    <button class="hover:text-yellow-300 transition font-medium">Menu Details ▾</button>
+                    <div
+                        class="absolute hidden group-hover:block bg-white text-gray-800 mt-2 rounded-lg shadow-lg w-48">
+                        <a href="{% url 'special_menu' %}"
+                            class="block px-4 py-2 hover:bg-indigo-100">Special Menu</a>
+                        <a href="{% url 'menuitem_list' %}" class="block px-4 py-2 hover:bg-indigo-100">Add Menu</a>
+                    </div>
+                </div>
+
+                <!-- Form Details Dropdown -->
+                <div class="group relative">
+                    <button class="hover:text-yellow-300 transition font-medium">Form Details ▾</button>
+                    <div
+                        class="absolute hidden group-hover:block bg-white text-gray-800 mt-2 rounded-lg shadow-lg w-56">
+                        <a href="{% url 'admin_contact_list' %}"
+                            class="block px-4 py-2 hover:bg-indigo-100">Contact Requests</a>
+                        <a href="{% url 'admin_reservations' %}"
+                            class="block px-4 py-2 hover:bg-indigo-100">Table Bookings</a>
+                    </div>
+                </div>
+
+                <!-- Order Details Dropdown -->
+                <div class="group relative">
+                    <button class="hover:text-yellow-300 transition font-medium">Order Details ▾</button>
+                    <div
+                        class="absolute hidden group-hover:block bg-white text-gray-800 mt-2 rounded-lg shadow-lg w-56">
+                        <a href="{% url 'order_food_table' %}"
+                            class="block px-4 py-2 hover:bg-indigo-100">Order Food Table</a>
+                        <a href="{% url 'manage_order_history' %}"
+                            class="block px-4 py-2 hover:bg-indigo-100">Manage History</a>
+                    </div>
+                </div>
+
+                <!-- Back to Site -->
+                <a href="/" class="bg-yellow-400 hover:bg-yellow-500 text-black font-semibold px-3 py-1 rounded-md transition">
+                    Back to Site
+                </a>
             </div>
         </nav>
     </header>
@@ -38,8 +84,21 @@
 
     <!-- Footer -->
     <footer class="bg-gray-900 text-gray-300 text-center py-4 mt-10">
-        <p class="text-sm">&copy; {{ year|default:2025 }} Hotel Management System. All rights reserved.</p>
+        <p class="text-sm">&copy; <span id="year"></span> Hotel Management System. All rights reserved.</p>
     </footer>
+
+    <!-- Scripts -->
+    <script>
+        // Mobile menu toggle
+        const menuBtn = document.getElementById('menu-btn');
+        const menu = document.getElementById('menu');
+        menuBtn.addEventListener('click', () => {
+            menu.classList.toggle('hidden');
+        });
+
+        // Dynamic Year
+        document.getElementById("year").textContent = new Date().getFullYear();
+    </script>
 
 </body>
 </html>

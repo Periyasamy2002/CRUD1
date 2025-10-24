@@ -6,9 +6,10 @@ from django.http import JsonResponse
 from django.core.mail import send_mail
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Prefetch
 import json
 
-from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser
+from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
 from .forms import MenuItemForm, SpecialMenuForm
 from django.db.models import Q
 
@@ -23,8 +24,15 @@ def home(request):
     })
 
 def menu(request):
-    menuitems = MenuItem.objects.select_related('category').all()
-    categories = MenuCategory.objects.all()
+    # Use Categories as the primary source and prefetch their MenuItems ordered by name.
+    # This guarantees each category block contains exactly the items saved under that category.
+ 
+    categories = MenuCategory.objects.prefetch_related(
+        Prefetch('menuitem_set', queryset=MenuItem.objects.order_by('name'))
+    ).all()  # Remove order_by('name') to preserve database order of categories
+
+    # Keep menuitems if other code expects it
+    menuitems = MenuItem.objects.select_related('category').order_by('category__name', 'name').all()
     return render(request, 'menu.html', {'menuitems': menuitems, 'categories': categories})
 
 def contact(request):
@@ -33,13 +41,16 @@ def contact(request):
         email = request.POST.get('email')
         message = request.POST.get('message')
 
+        # Save to DB
+        Contact.objects.create(name=name or 'Anonymous', email=email or '', message=message or '')
+
         subject = f'New message from {name}'
         full_message = f"From: {name} <{email}>\n\nMessage:\n{message}"
 
         try:
-            send_mail(subject, full_message, email, ['saranvignesh55@gmail.com'])
+            send_mail(subject, full_message, email or None, ['saranvignesh55@gmail.com'])
             messages.success(request, 'Message sent successfully!')
-        except:
+        except Exception:
             messages.error(request, 'Failed to send message. Try again later.')
 
         return redirect('contact')
@@ -47,6 +58,40 @@ def contact(request):
     return render(request, 'contact.html')
 
 def table_reservation(request):
+    if request.method == 'POST':
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone')
+        date = request.POST.get('date')
+        time = request.POST.get('time')
+        guests = request.POST.get('guests') or 1
+        special_requests = request.POST.get('special_requests', '')
+
+        # Basic validation could be extended; here we save the reservation
+        TableReservation.objects.create(
+            name=name or 'Guest',
+            email=email or '',
+            phone=phone or '',
+            date=date,
+            time=time,
+            guests=int(guests) if str(guests).isdigit() else 1,
+            special_requests=special_requests
+        )
+
+        # optional: send confirmation email (best-effort)
+        try:
+            send_mail(
+                'Reservation received',
+                f'Thank you {name}, your reservation for {date} at {time} has been received.',
+                'no-reply@example.com',
+                [email] if email else []
+            )
+        except Exception:
+            pass
+
+        messages.success(request, 'Reservation submitted. We will contact you to confirm.')
+        return redirect('table_reservation')
+
     return render(request, 'reservation.html')
 
 def order_menu(request):
@@ -346,30 +391,66 @@ def menuitem_update(request, pk):
 
 @csrf_exempt
 def order_submit(request):
+    # Accept both single-item payloads and a cart array from cart.html
     if not request.user.is_authenticated:
         return JsonResponse({'success': False, 'error': 'Please log in to place an order.'}, status=401)
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            required = ['item', 'price', 'qty', 'orderType', 'mobile', 'address', 'delivery']
-            for field in required:
-                if not data.get(field):
-                    return JsonResponse({'success': False, 'error': f'Missing {field}.'})
-            if data['orderType'] == 'later' and (not data.get('orderDate') or not data.get('orderTime')):
-                return JsonResponse({'success': False, 'error': 'Date and time required for scheduled order.'})
-            order = Order.objects.create(
-                item=data['item'],
-                price=data['price'],
-                qty=data['qty'],
-                order_type=data['orderType'],
-                order_date=data.get('orderDate') or None,
-                order_time=data.get('orderTime') or None,
-                email=request.user.email,
-                mobile=data['mobile'],
-                address=data['address'],
-                delivery=data['delivery'],
-            )
-            return JsonResponse({'success': True, 'order_id': order.id})
+            # If cart array is provided, create an Order for each cart item
+            cart = data.get('cart')
+            if cart and isinstance(cart, list) and len(cart) > 0:
+                # Basic validation: require mobile, address, delivery at top level
+                mobile = data.get('mobile')
+                address = data.get('address')
+                delivery = data.get('delivery')
+                order_type = data.get('orderType', 'now')
+                order_date = data.get('orderDate') if order_type == 'later' else None
+                order_time = data.get('orderTime') if order_type == 'later' else None
+
+                if not all([mobile, address, delivery]):
+                    return JsonResponse({'success': False, 'error': 'Missing required contact/delivery fields.'})
+
+                created_ids = []
+                for c in cart:
+                    name = c.get('name') or c.get('item') or c.get('item_name')
+                    price = c.get('price') or 0
+                    qty = c.get('qty') or 1
+                    if not name:
+                        return JsonResponse({'success': False, 'error': 'Cart item missing name.'})
+                    order = Order.objects.create(
+                        item=name,
+                        price=price,
+                        qty=qty,
+                        order_type=order_type,
+                        order_date=order_date,
+                        order_time=order_time,
+                        email=request.user.email,
+                        mobile=mobile,
+                        address=address,
+                        delivery=delivery,
+                    )
+                    created_ids.append(order.id)
+                return JsonResponse({'success': True, 'order_ids': created_ids})
+            else:
+                # Fallback to single-item payload for compatibility
+                required = ['item', 'price', 'qty', 'orderType', 'mobile', 'address', 'delivery']
+                for field in required:
+                    if not data.get(field):
+                        return JsonResponse({'success': False, 'error': f'Missing {field}.'})
+                order = Order.objects.create(
+                    item=data['item'],
+                    price=data['price'],
+                    qty=data['qty'],
+                    order_type=data['orderType'],
+                    order_date=data.get('orderDate') or None,
+                    order_time=data.get('orderTime') or None,
+                    email=request.user.email,
+                    mobile=data['mobile'],
+                    address=data['address'],
+                    delivery=data['delivery'],
+                )
+                return JsonResponse({'success': True, 'order_id': order.id})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Invalid request'})
@@ -441,7 +522,9 @@ def order_live(request):
     if not request.user.is_staff:
         return redirect('admin_login')
 
-    pending_orders = Order.objects.filter(status='pending').order_by('created_at')
+    pending_orders = Order.objects.filter(
+        status__in=['pending', 'Accepted', 'Making', 'Ready to Collect']
+    ).order_by('-created_at')
     
     orders_with_items = []
     for order in pending_orders:
@@ -453,43 +536,141 @@ def order_live(request):
         
         orders_with_items.append({
             'order': order,
-            'image': image
+            'image': image,
+            'status_class': get_status_class(order.status),
+            'created_at_formatted': order.created_at.strftime("%Y-%m-%d %H:%M:%S")
         })
+    
+    return render(request, 'admin2/order_live.html', {
+        'orders_with_items': orders_with_items,
+        'active_tab': 'live_orders'
+    })
+
+def get_status_class(status):
+    status_classes = {
+        'pending': 'bg-yellow-100 text-yellow-800',
+        'Accepted': 'bg-blue-100 text-blue-800',
+        'Making': 'bg-purple-100 text-purple-800',
+        'Ready to Collect': 'bg-green-100 text-green-800',
+        'Delivered': 'bg-gray-100 text-gray-800',
+        'Cancelled': 'bg-red-100 text-red-800'
+    }
+    return status_classes.get(status, 'bg-gray-100 text-gray-800')
 
 def order_food_table(request):
-    orders = Order.objects.exclude(status__in=['Delivered', 'Canceled']).order_by('created_at')
-    return render(request, 'admin2/order_food_table.html', {'orders': orders})
+    if not request.user.is_staff:
+        return redirect('admin_login')
+        
+    orders = Order.objects.exclude(
+        status__in=['Delivered', 'Cancelled']
+    ).order_by('-created_at')
+    
+    # Group orders by status for better organization
+    orders_by_status = {
+        'pending': orders.filter(status='pending'),
+        'accepted': orders.filter(status='Accepted'),
+        'making': orders.filter(status='Making'),
+        'ready': orders.filter(status='Ready to Collect')
+    }
+    
+    return render(request, 'admin2/order_food_table.html', {
+        'orders_by_status': orders_by_status,
+        'active_tab': 'food_orders'
+    })
 
 def manage_order_history(request):
-    orders = Order.objects.all().order_by('-created_at')
-    return render(request, 'admin2/manage_order_history.html', {'orders': orders})
+    if not request.user.is_staff:
+        return redirect('admin_login')
+
+    # Add status filter
+    status_filter = request.GET.get('status', '')
+    date_filter = request.GET.get('date', '')
+    
+    orders = Order.objects.all()
+    
+    if status_filter:
+        orders = orders.filter(status=status_filter)
+    if date_filter:
+        orders = orders.filter(created_at__date=date_filter)
+        
+    orders = orders.order_by('-created_at')
+    
+    # Get unique statuses for filter dropdown
+    all_statuses = Order.objects.values_list('status', flat=True).distinct()
+    
+    return render(request, 'admin2/manage_order_history.html', {
+        'orders': orders,
+        'all_statuses': all_statuses,
+        'current_status': status_filter,
+        'current_date': date_filter,
+        'active_tab': 'order_history'
+    })
+
+@login_required
+def order_detail(request, pk):
+    try:
+        if request.user.is_staff:
+            order = get_object_or_404(Order, pk=pk)
+        else:
+            order = get_object_or_404(Order, pk=pk, email=request.user.email)
+            
+        # Get associated menu item if exists
+        try:
+            menu_item = MenuItem.objects.get(name=order.item)
+            item_image = menu_item.image
+        except MenuItem.DoesNotExist:
+            item_image = None
+            
+        context = {
+            'order': order,
+            'item_image': item_image,
+            'status_class': get_status_class(order.status),
+            'can_cancel': order.status in ['pending', 'Accepted'],
+            'can_modify': request.user.is_staff,
+            'active_tab': 'orders'
+        }
+        
+        return render(request, 'order_detail.html', context)
+        
+    except Order.DoesNotExist:
+        messages.error(request, 'Order not found.')
+        return redirect('dashboard')
+
+# Make this the main order_details view
+order_details = order_detail
 
 # ---------------- API Views ----------------
 
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db.models import Q
+
 @csrf_exempt
 def search_menu_items_api(request):
-    query = request.GET.get('q', '')
-    if query:
-        menu_items = MenuItem.objects.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        ).values('id', 'name', 'description', 'image')
-        
-        results = []
-        for item in menu_items:
-            image_url = item['image'].url if item['image'] else None
-            results.append({
-                'id': item['id'],
-                'name': item['name'],
-                'description': item['description'],
-                'image_url': image_url,
-                'url': f'#menu-item-{item['id']}' # Anchor link to the item
-            })
-        return JsonResponse(results, safe=False)
-    return JsonResponse([], safe=False)
+    """
+    Returns JSON list of menu items matching query.
+    Each item includes: id, name, description, image_url, url (anchor to menu item id).
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse([], safe=False)
 
-def admin_manage(request):
-    # You can customize the context or template as needed
-    return render(request, 'admin2/adminmanage.html')
+    menu_items = MenuItem.objects.filter(
+        Q(name__icontains=query) | Q(description__icontains=query)
+    ).values('id', 'name', 'description', 'image')
+
+    results = []
+    for item in menu_items:
+        image_url = item['image'].url if item['image'] else None
+        results.append({
+            'id': item['id'],
+            'name': item['name'],
+            'description': item['description'],
+            'image_url': image_url,
+            # Provide anchor that client can use to scroll: #menu-item-<id>
+            'url': f'#menu-item-{item["id"]}'
+        })
+    return JsonResponse(results, safe=False)
 
 @login_required
 def delete_order(request, pk):
@@ -500,6 +681,7 @@ def delete_order(request, pk):
         order.delete()
         return redirect('order_live')
     return render(request, 'order_confirm_delete.html', {'order': order})
+
 @login_required
 def update_order_status(request, pk):
     if not request.user.is_staff:
@@ -525,65 +707,86 @@ def update_order_status(request, pk):
 
 # ---------------- API Views ----------------
 
-@csrf_exempt
-def search_menu_items_api(request):
-    query = request.GET.get('q', '')
-    if query:
-        menu_items = MenuItem.objects.filter(
-            Q(name__icontains=query) | Q(description__icontains=query)
-        ).values('id', 'name', 'description', 'image')
-        
-        results = []
-        for item in menu_items:
-            image_url = item['image'].url if item['image'] else None
-            results.append({
-                'id': item['id'],
-                'name': item['name'],
-                'description': item['description'],
-                'image_url': image_url,
-                'url': f'#menu-item-{item['id']}' # Anchor link to the item
-            })
-        return JsonResponse(results, safe=False)
-    return JsonResponse([], safe=False)
+@login_required
+def admin_manage(request):
+    """
+    Management landing page for admin2 users.
+    Ensures only staff or management users can access the admin manage page.
+    """
+    # Allow access for staff or management user_type
+    if not request.user.is_authenticated or not (request.user.is_staff or getattr(request.user, "user_type", None) == "management"):
+        return redirect('admin2_login')
+
+    # Add any context metrics as needed later
+    return render(request, 'admin2/adminmanage.html')
 
 
+# sushi/views.py
+from django.shortcuts import render
+
+def order_card_list(request):
+    return render(request, 'order_card_list.html')
+
+def order_card_detail(request, pk):
+    return render(request, 'order_card_detail.html')
+    return render(request, 'order_card_detail.html', {'pk': pk})
+
+def cart_page(request):
+    return render(request, 'cart.html')
+
+# ---------------- Admin Contact & Reservation Management ----------------
 
 @login_required
-def delete_order(request, pk):
+def admin_contact_list(request):
     if not request.user.is_staff:
         return redirect('admin_login')
-    order = get_object_or_404(Order, pk=pk)
-    if request.method == 'POST':
-        order.delete()
-        return redirect('order_live')
-    return render(request, 'order_confirm_delete.html', {'order': order})
+    
+    contacts = Contact.objects.all().order_by('-created_at')
+    return render(request, 'admin2/contact_list.html', {
+        'contacts': contacts,
+        'active_tab': 'contacts'
+    })
 
 @login_required
-def order_card_list(request):
-    # Show all orders for the logged-in user as cards
-    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
-    return render(request, 'order_card_list.html', {'orders': orders})
+def admin_reservations(request):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    
+    # Filter options
+    date_filter = request.GET.get('date')
+    status_filter = request.GET.get('status')
+    
+    reservations = TableReservation.objects.all()
+    if date_filter:
+        reservations = reservations.filter(date=date_filter)
+    if status_filter:
+        reservations = reservations.filter(status=status_filter)
+        
+    reservations = reservations.order_by('date', 'time')
+    
+    return render(request, 'admin2/reservations.html', {
+        'reservations': reservations,
+        'active_tab': 'reservations'
+    })
 
 @login_required
-def order_card_detail(request, pk):
-    # Show details and live status/actions for a single order
-    order = get_object_or_404(Order, pk=pk, email=request.user.email)
-    steps = [
-        "Accepted",
-        "Making",
-        "Ready to Collect",
-        "Delivered",
-        "Cancelled"
-    ]
-    # Find the index of the current status in steps, default to 0 if not found
-    try:
-        current_step_index = steps.index(order.status)
-    except ValueError:
-        current_step_index = 0
+def update_reservation_status(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+        
+    reservation = get_object_or_404(TableReservation, pk=pk)
     if request.method == 'POST':
-        new_status = request.POST.get('status')
-        if new_status and new_status in steps:
-            order.status = new_status
-            order.save()
-            current_step_index = steps.index(order.status)
-    return render(request, 'order_card_detail.html', {'order': order, 'steps': steps, 'current_step_index': current_step_index})
+        status = request.POST.get('status')
+        if status in ['confirmed', 'cancelled']:
+            reservation.status = status
+            reservation.save()
+            
+            # Send email notification
+            subject = f'Your table reservation for {reservation.date} has been {status}'
+            message = f'Dear {reservation.name},\n\nYour table reservation for {reservation.date} at {reservation.time} has been {status}.'
+            try:
+                send_mail(subject, message, 'saranvignesh55@gmail.com', [reservation.email])
+            except Exception as e:
+                messages.error(request, f'Status updated but failed to send notification: {str(e)}')
+                
+    return redirect('admin_reservations')

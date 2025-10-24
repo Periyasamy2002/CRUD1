@@ -279,6 +279,38 @@
         </div>
     </footer>
 
+    <!-- Cart Management -->
+    <script>
+        // Initialize global cart from localStorage or as an empty array
+        window.globalCart = JSON.parse(localStorage.getItem('sushiNarutoCart')) || [];
+
+        // Function to update and save the cart
+        function updateCart() {
+            localStorage.setItem('sushiNarutoCart', JSON.stringify(window.globalCart));
+            window.dispatchEvent(new CustomEvent('cart-updated'));
+        }
+
+        // Function to add to cart and redirect
+        function addToCartAndGoToCart(id, name, price) {
+            const itemId = parseInt(id);
+            const existingItem = window.globalCart.find(item => item.id === itemId);
+
+            if (existingItem) {
+                existingItem.qty += 1;
+            } else {
+                window.globalCart.push({ id: itemId, name: name, price: parseFloat(price), qty: 1 });
+            }
+            updateCart();
+            window.location.href = "{% url 'cart' %}";
+        }
+
+        // Clear cart from local storage (for debugging or other purposes)
+        function clearCart() {
+            window.globalCart = [];
+            updateCart();
+        }
+    </script>
+
     <!-- Alpine.js -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </body>

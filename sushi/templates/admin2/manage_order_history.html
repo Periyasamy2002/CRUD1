@@ -71,11 +71,74 @@
         .status-on_the_way { color: #2196f3; }
         .status-delivered { color: #8bc34a; }
         .status-canceled { color: #f44336; }
+        
+        /* Add new styles */
+        .table-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .entries-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .filter-control {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-top: 20px;
+        }
+        
+        .pagination button {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            background-color: white;
+            cursor: pointer;
+        }
+        
+        .pagination button.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+        
+        .filter-input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
     <div class="table-container">
         <h2>Manage Order History</h2>
+        
+        <div class="table-controls">
+            <div class="entries-control">
+                <span>Show</span>
+                <select id="entriesPerPage" onchange="changeEntries()">
+                    <option value="10">10</option>
+                    <option value="15">15</option>
+                    <option value="20">20</option>
+                    <option value="30">30</option>
+                </select>
+                <span>entries</span>
+            </div>
+            
+            <div class="filter-control">
+                <input type="text" id="tableFilter" class="filter-input" placeholder="Search..." onkeyup="filterTable()">
+            </div>
+        </div>
+
         <table>
             <thead>
                 <tr>
@@ -117,6 +180,74 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <div class="pagination" id="pagination">
+            <!-- Pagination buttons will be inserted here by JavaScript -->
+        </div>
     </div>
+
+    <script>
+        let currentPage = 1;
+        const table = document.querySelector('table');
+        const rows = Array.from(table.getElementsByTagName('tr')).slice(1); // Skip header row
+
+        function changeEntries() {
+            const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
+            currentPage = 1;
+            displayTableRows();
+        }
+
+        function filterTable() {
+            const filterText = document.getElementById('tableFilter').value.toLowerCase();
+            currentPage = 1;
+            
+            rows.forEach(row => {
+                const text = Array.from(row.getElementsByTagName('td'))
+                    .map(cell => cell.textContent.toLowerCase())
+                    .join(' ');
+                row.style.display = text.includes(filterText) ? '' : 'none';
+            });
+            
+            updatePagination();
+            displayTableRows();
+        }
+
+        function displayTableRows() {
+            const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
+            const start = (currentPage - 1) * entriesPerPage;
+            const end = start + entriesPerPage;
+            
+            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            
+            visibleRows.forEach((row, index) => {
+                row.style.display = (index >= start && index < end) ? '' : 'none';
+            });
+            
+            updatePagination();
+        }
+
+        function updatePagination() {
+            const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
+            const visibleRows = rows.filter(row => row.style.display !== 'none');
+            const pageCount = Math.ceil(visibleRows.length / entriesPerPage);
+            
+            const paginationDiv = document.getElementById('pagination');
+            paginationDiv.innerHTML = '';
+            
+            for (let i = 1; i <= pageCount; i++) {
+                const button = document.createElement('button');
+                button.textContent = i;
+                button.classList.toggle('active', i === currentPage);
+                button.onclick = () => {
+                    currentPage = i;
+                    displayTableRows();
+                };
+                paginationDiv.appendChild(button);
+            }
+        }
+
+        // Initialize the table
+        displayTableRows();
+    </script>
 </body>
 {% endblock %}

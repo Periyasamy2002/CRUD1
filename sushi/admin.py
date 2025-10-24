@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser, MenuCategory, MenuItem, SpecialMenu, Order
+from .models import CustomUser, MenuCategory, MenuItem, SpecialMenu, Order, Contact, TableReservation
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -44,3 +44,15 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ('item', 'qty', 'price', 'order_type', 'email', 'status', 'created_at')
     list_filter = ('order_type', 'status', 'created_at')
     search_fields = ('item', 'email')
+
+@admin.register(Contact)
+class ContactAdmin(admin.ModelAdmin):
+    list_display = ('name', 'email', 'created_at', 'status')
+    list_filter = ('status', 'created_at')
+    search_fields = ('name', 'email', 'message')
+
+@admin.register(TableReservation)
+class TableReservationAdmin(admin.ModelAdmin):
+    list_display = ('name', 'date', 'time', 'guests', 'status', 'created_at')
+    list_filter = ('status', 'date')
+    search_fields = ('name', 'email', 'phone')

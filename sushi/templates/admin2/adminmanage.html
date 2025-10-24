@@ -1,8 +1,271 @@
 {% extends 'admin2/base2.html' %}
 
 {% block content %}
-<div class="container">
-    <h1>Admin Management</h1>
-    <p>Welcome to the admin management page.</p>
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root{
+            --bg:#f6f7fb;
+            --card:#ffffff;
+            --muted:#68708a;
+            --accent:#2f80ed;
+            --success:#27ae60;
+            --danger:#e74c3c;
+            --glass: rgba(255,255,255,0.6);
+        }
+        body { font-family: "Inter", Arial, sans-serif; background: var(--bg); color:#222; margin:0; padding:18px; }
+        .dashboard {
+            max-width:1200px;
+            margin:0 auto;
+        }
+        .dash-header {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            margin-bottom:18px;
+        }
+        .dash-title {
+            display:flex;
+            flex-direction:column;
+        }
+        .dash-title h1 { margin:0; font-size:22px; }
+        .dash-title p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+
+        .controls { display:flex; gap:8px; align-items:center; }
+        .control-select, .control-input {
+            padding:8px 10px;
+            border-radius:8px;
+            border:1px solid #e6e9ef;
+            background:var(--card);
+            font-size:13px;
+        }
+
+        .grid {
+            display:grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap:14px;
+            margin-bottom:18px;
+        }
+        .card {
+            background:var(--card);
+            border-radius:10px;
+            padding:14px;
+            box-shadow:0 6px 18px rgba(27,40,79,0.06);
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+        .card .icon {
+            width:52px;
+            height:52px;
+            border-radius:10px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:#fff;
+            font-size:20px;
+        }
+        .card .meta { flex:1; }
+        .card .meta .label { font-size:12px; color:var(--muted); }
+        .card .meta .value { font-size:18px; font-weight:600; margin-top:4px; }
+
+        .icon.orders { background:linear-gradient(135deg,#4f46e5,#3b82f6); }
+        .icon.revenue { background:linear-gradient(135deg,#10b981,#06b6d4); }
+        .icon.pending { background:linear-gradient(135deg,#f59e0b,#f97316); }
+        .icon.delivered { background:linear-gradient(135deg,#14b8a6,#06b6d4); }
+
+        .layout {
+            display:grid;
+            grid-template-columns: 1fr 420px;
+            gap:14px;
+            align-items:start;
+        }
+        .panel {
+            background:var(--card);
+            border-radius:10px;
+            padding:14px;
+            box-shadow:0 6px 18px rgba(27,40,79,0.06);
+        }
+        .chart {
+            height:260px;
+            border-radius:8px;
+            background:linear-gradient(180deg,#ffffff,#fbfdff);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:var(--muted);
+            font-size:14px;
+        }
+
+        .recent-orders table {
+            width:100%;
+            border-collapse:collapse;
+            font-size:13px;
+        }
+        .recent-orders th, .recent-orders td {
+            padding:10px 8px;
+            text-align:left;
+            border-bottom:1px solid #f1f3f6;
+        }
+        .status { padding:6px 8px; border-radius:8px; font-size:12px; color:#fff; display:inline-block; }
+        .status.pending { background:var(--danger); background:linear-gradient(90deg,#f97316,#f59e0b); }
+        .status.confirmed { background:linear-gradient(90deg,#06b6d4,#3b82f6); }
+        .status.delivered { background:linear-gradient(90deg,#10b981,#06b6d4); }
+        .recent-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+
+        @media (max-width:1000px){
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            .layout { grid-template-columns: 1fr; }
+        }
+        @media (max-width:600px){
+            .grid { grid-template-columns: 1fr; }
+            .dash-header { flex-direction:column; align-items:flex-start; gap:8px; }
+        }
+    </style>
+</head>
+
+<div class="dashboard">
+    <div class="dash-header">
+        <div class="dash-title">
+            <h1>Admin Dashboard</h1>
+            <p>Overview of orders, revenue and recent activity</p>
+        </div>
+
+        <div class="controls">
+            <select class="control-select" id="dateRange">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+            <input class="control-input" type="text" id="quickSearch" placeholder="Search orders..." onkeyup="filterOrders()">
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="card">
+            <div class="icon orders"><i class="fas fa-shopping-basket"></i></div>
+            <div class="meta">
+                <div class="label">Total Orders</div>
+                <div class="value" id="totalOrders">{{ total_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon revenue"><i class="fas fa-dollar-sign"></i></div>
+            <div class="meta">
+                <div class="label">Revenue</div>
+                <div class="value">৳ <span id="totalRevenue">{{ total_revenue|default_if_none:"0.00" }}</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon pending"><i class="fas fa-clock"></i></div>
+            <div class="meta">
+                <div class="label">Pending</div>
+                <div class="value" id="pendingOrders">{{ pending_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon delivered"><i class="fas fa-truck"></i></div>
+            <div class="meta">
+                <div class="label">Delivered</div>
+                <div class="value" id="deliveredOrders">{{ delivered_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="panel">
+            <div class="recent-head">
+                <strong>Recent Orders</strong>
+                <small style="color:var(--muted)">{{ recent_orders|length }} shown</small>
+            </div>
+
+            <div class="recent-orders">
+                <table id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Placed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders|slice:":8" %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.item|default_if_none:"—" }}</td>
+                            <td>{{ order.qty|default_if_none:"0" }}</td>
+                            <td>৳ {{ order.price|default_if_none:"0.00" }}</td>
+                            <td>
+                                {% if order.status == "pending" %}
+                                    <span class="status pending">Pending</span>
+                                {% elif order.status == "delivered" %}
+                                    <span class="status delivered">Delivered</span>
+                                {% else %}
+                                    <span class="status confirmed">{{ order.status|capfirst }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" style="color:var(--muted); padding:16px">No recent orders</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <strong>Sales Snapshot</strong>
+            <div class="chart" id="chartPlaceholder">
+                <!-- Replace with a real chart (Chart.js, ApexCharts, etc.) -->
+                Chart placeholder — integrate chart library in future
+            </div>
+            <div style="margin-top:12px;color:var(--muted);font-size:13px">
+                New customers: <strong>{{ new_customers|default_if_none:"0" }}</strong>
+            </div>
+        </div>
+    </div>
 </div>
+
+<script>
+    // Simple count-up animation for numeric cards
+    function animateCount(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const end = parseFloat(el.textContent.replace(/[,৳\s]/g,'')) || 0;
+        let start = 0;
+        const duration = 700;
+        const stepTime = Math.max(16, duration / Math.max(end,1));
+        const startTime = Date.now();
+        (function tick(){
+            const now = Date.now();
+            const progress = Math.min(1,(now - startTime)/duration);
+            const current = Math.floor(progress * end);
+            el.textContent = current.toLocaleString();
+            if (progress < 1) requestAnimationFrame(tick);
+            else el.textContent = end.toLocaleString();
+        })();
+    }
+    animateCount('totalOrders');
+    animateCount('pendingOrders');
+    animateCount('deliveredOrders');
+
+    // Quick client-side search for the recent orders table
+    function filterOrders() {
+        const q = document.getElementById('quickSearch').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('#ordersTable tbody tr');
+        rows.forEach(row => {
+            const txt = row.textContent.toLowerCase();
+            row.style.display = q === '' || txt.includes(q) ? '' : 'none';
+        });
+    }
+</script>
+
 {% endblock %}

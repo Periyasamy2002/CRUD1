@@ -16,7 +16,18 @@
         <tbody>
             {% for order in orders %}
             <tr>
-                <td class="px-4 py-2 border">{{ order.item }}</td>
+                <td class="px-4 py-2 border">
+                    {% comment %} Show related object's name if present, otherwise fallback to stored value {% endcomment %}
+                    {% if order.item.name %}
+                        {{ order.item.name }}
+                    {% elif order.menu_item.name %}
+                        {{ order.menu_item.name }}
+                    {% elif order.food.name %}
+                        {{ order.food.name }}
+                    {% else %}
+                        {{ order.item }}
+                    {% endif %}
+                </td>
                 <td class="px-4 py-2 border">{{ order.qty }}</td>
                 <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
                 <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
