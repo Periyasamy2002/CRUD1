@@ -110,9 +110,10 @@
         align-items: center;
         margin-top: 0.3rem;
 
-        
+
     }
-    .transition{
+
+    .transition {
         padding: 3px 9px;
     }
 
@@ -264,407 +265,175 @@
 </nav>
 <!-- Wrap menu and modal in a single Alpine.js scope -->
 <div x-data="orderModal()" x-cloak>
-    {# Menu Items by Category #}
+    {# Render based on saved Categories; items are prefetched in the view #}
     <div>
-        {% regroup menuitems by category as category_list %}
-        {% for cat in category_list %}
-        <div class="menu-category-container fade-in" id="category-{{ cat.grouper.name|slugify }}">
-            <div class="menu-category-title">{{ cat.grouper.name }}</div>
-            <div class="menu-cards">
-                {% for item in cat.list %}
-                <div class="menu-card" id="menu-item-{{ item.id }}">
-                    {% if item.image %}
-                    <img src="{{ item.image.url }}" alt="{{ item.name }}" class="cursor-pointer"
-                        @click="openOrderModal('{{ item.name|escapejs }}', {{ item.price }})">
-                    {% else %}
-                    <img src="{% static 'images/no-image.png' %}" alt="No image" class="cursor-pointer"
-                        @click="openOrderModal('{{ item.name|escapejs }}', {{ item.price }})">
+        {% if categories %}
+            {% for category in categories %}
+                {% with items=category.menuitem_set.all %}
+                    {% if items %}
+                        <div class="menu-category-container fade-in" id="category-{{ category.name|slugify }}">
+                            <div class="menu-category-title">{{ category.name }}</div>
+                            <div class="menu-cards">
+                                {% for item in items %}
+                                    <div class="menu-card" id="menu-item-{{ item.id }}">
+                                        {% if item.image %}
+                                        <img src="{{ item.image.url }}" alt="{{ item.name }}" class="cursor-pointer"
+                                            onclick="addToCartAndGoToCart('{{ item.name|escapejs }}', {{ item.price }})">
+                                        {% else %}
+                                        <img src="{% static 'images/no-image.png' %}" alt="No image" class="cursor-pointer"
+                                            onclick="addToCartAndGoToCart('{{ item.name|escapejs }}', {{ item.price }})">
+                                        {% endif %}
+                                        <div class="menu-card-content">
+                                            <div class="menu-card-title">{{ item.name }}</div>
+                                            <div class="menu-card-desc" x-data="{ expanded: false }"
+                                                :class="expanded ? 'menu-card-desc-expanded' : ''" @click="expanded = !expanded" x-init="
+                                                    let el = $el;
+                                                    let fullText = el.innerText.trim();
+                                                    let words = fullText.split(/\s+/);
+                                                    if (words.length > 3) {
+                                                        el.setAttribute('data-full', fullText);
+                                                        el.innerText = words.slice(0,3).join(' ') + '...';
+                                                        el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
+                                                    }
+                                                " x-effect="
+                                                    if (expanded && $el.hasAttribute('data-full')) {
+                                                        $el.innerText = $el.getAttribute('data-full');
+                                                    } else if ($el.hasAttribute('data-full')) {
+                                                        let words = $el.getAttribute('data-full').split(/\s+/);
+                                                        $el.innerText = words.slice(0,3).join(' ') + '...';
+                                                        $el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
+                                                    }
+                                                ">
+                                                {{ item.description }}
+                                            </div>
+                                            <div class="menu-card-footer">
+                                                <div class="menu-card-price">{{ item.price }} CHF</div>
+                                                <button
+                                                    class="bg-red-600 text-white rounded menu-card-order-btn hover:bg-red-700 transition"
+                                                    onclick="addToCartAndGoToCart('{{ item.id }}', '{{ item.name|escapejs }}', {{ item.price }})">
+                                                    Order
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
-                    <div class="menu-card-content">
-                        <div class="menu-card-title">{{ item.name }}</div>
-                        <div class="menu-card-desc" x-data="{ expanded: false }"
-                            :class="expanded ? 'menu-card-desc-expanded' : ''"
-                            @click="expanded = !expanded"
-                            x-init="
-                                let el = $el;
-                                let fullText = el.innerText.trim();
-                                let words = fullText.split(/\s+/);
-                                if (words.length > 3) {
-                                    el.setAttribute('data-full', fullText);
-                                    el.innerText = words.slice(0,3).join(' ') + '...';
-                                    el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
-                                }
-                            "
-                            x-effect="
-                                if (expanded && $el.hasAttribute('data-full')) {
-                                    $el.innerText = $el.getAttribute('data-full');
-                                } else if ($el.hasAttribute('data-full')) {
-                                    let words = $el.getAttribute('data-full').split(/\s+/);
-                                    $el.innerText = words.slice(0,3).join(' ') + '...';
-                                    $el.insertAdjacentHTML('beforeend', '<span class=\'menu-card-more\' x-show=\'!expanded\'>more</span>');
-                                }
-                            "
-                        >
-                            {{ item.description }}
-                        </div>
-                        <div class="menu-card-footer">
-                            <div class="menu-card-price">{{ item.price }} CHF</div>
-                            <button
-                                class="bg-red-600 text-white rounded menu-card-order-btn hover:bg-red-700 transition"
-                                @click.prevent="$nextTick(() => openOrderModal('{{ item.name|escapejs }}', {{ item.price }}))">
-                                Order
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% empty %}
-        <p>No menu items available.</p>
-        {% endfor %}
-    </div>
-
-    <!-- 3-step modal -->
-    <div x-show="open" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 modal-fade"
-        x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0"
-        x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150"
-        x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" aria-modal="true" role="dialog">
-        <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative" @click.away="reset"
-            @keydown.escape.window="reset">
-            <button class="absolute top-2 right-2 text-gray-400 hover:text-red-600 text-2xl" @click="reset"
-                aria-label="Close">&times;</button>
-            <h2 class="text-lg font-bold mb-4 text-center">Order: <span x-text="itemName"></span></h2>
-            <!-- Step 1: Cart Review -->
-            <template x-if="step === 1">
-                <div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Quantity</label>
-                        <div class="flex items-center">
-                            <button class="px-3 py-1 bg-gray-200 rounded-l" @click="qty = Math.max(1, qty-1)">-</button>
-                            <span class="px-4" x-text="qty"></span>
-                            <button class="px-3 py-1 bg-gray-200 rounded-r" @click="qty++">+</button>
-                        </div>
-                    </div>
-                    <div class="mb-4">Total: <span class="font-bold" x-text="(qty * price).toFixed(2)"></span> CHF</div>
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded w-full" @click="nextStep()">Next</button>
-                </div>
-            </template>
-            <!-- Step 2: User Info & Delivery -->
-            <template x-if="step === 2">
-                <div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Email</label>
-                        <input type="email" x-model="email" class="border rounded px-2 py-1 w-full" placeholder="Email">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Mobile Number</label>
-                        <input type="tel" x-model="mobile" class="border rounded px-2 py-1 w-full"
-                            placeholder="Mobile Number">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Address</label>
-                        <input type="text" x-model="address" class="border rounded px-2 py-1 w-full"
-                            placeholder="Address">
-                    </div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Delivery Method</label>
-                        <select x-model="delivery" class="border rounded px-2 py-1 w-full">
-                            <option value="Click & Collect">Click & Collect (Free)</option>
-                            <option value="Free">Free</option>
-                            <option value="Livraison Express 3.5km">Livraison Express 3.5km</option>
-                        </select>
-                    </div>
-                    <div class="mb-4">
-                        <label class="block font-semibold mb-1">Order Type</label>
-                        <select x-model="orderType" class="border rounded px-2 py-1 w-full">
-                            <option value="now">Order Now (Live)</option>
-                            <option value="later">Order Later (Schedule)</option>
-                        </select>
-                    </div>
-                    <template x-if="orderType==='later'">
-                        <div>
-                            <div class="mb-3">
-                                <label class="block font-semibold mb-1">Pick Date</label>
-                                <input type="date" x-model="orderDate" class="border rounded px-2 py-1 w-full">
-                            </div>
-                            <div class="mb-3">
-                                <label class="block font-semibold mb-1">Pick Time</label>
-                                <input type="time" x-model="orderTime" class="border rounded px-2 py-1 w-full">
-                            </div>
-                        </div>
-                    </template>
-                    <template x-if="error">
-                        <div class="text-red-600 mb-2" x-text="error"></div>
-                    </template>
-                    <div class="flex justify-between">
-                        <button class="bg-gray-300 text-gray-700 px-4 py-2 rounded" @click="step=1">Back</button>
-                        <button class="bg-green-600 text-white px-4 py-2 rounded"
-                            @click="validateAndNext()">Next</button>
-                    </div>
-                </div>
-            </template>
-            <!-- Step 3: Confirm & Place Order -->
-            <template x-if="step === 3">
-                <div>
-                    <div class="mb-4">
-                        <div><b>Item:</b> <span x-text="itemName"></span></div>
-                        <div><b>Qty:</b> <span x-text="qty"></span></div>
-                        <div><b>Total:</b> <span x-text="(qty * price).toFixed(2)"></span> CHF</div>
-                        <div><b>Email:</b> <span x-text="email"></span></div>
-                        <div><b>Mobile:</b> <span x-text="mobile"></span></div>
-                        <div><b>Address:</b> <span x-text="address"></span></div>
-                        <div><b>Delivery:</b> <span x-text="delivery"></span></div>
-                        <div><b>Order Type:</b> <span x-text="orderType"></span></div>
-                        <template x-if="orderType==='later'">
-                            <div>
-                                <div><b>Date:</b> <span x-text="orderDate"></span></div>
-                                <div><b>Time:</b> <span x-text="orderTime"></span></div>
-                            </div>
-                        </template>
-                    </div>
-                    <template x-if="error">
-                        <div class="text-red-600 mb-2" x-text="error"></div>
-                    </template>
-                    <button class="bg-blue-600 text-white px-4 py-2 rounded w-full" @click="submitOrder()"
-                        :disabled="loading">
-                        <span x-show="!loading">Place Order</span>
-                        <span x-show="loading" class="flex items-center justify-center">
-                            <svg class="animate-spin h-5 w-5 mr-2 text-white" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"
-                                    fill="none" />
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                            </svg>
-                            Processing...
-                        </span>
-                    </button>
-                </div>
-            </template>
-            <!-- Success Message -->
-            <template x-if="step === 4">
-                <div class="text-center py-8">
-                    <div class="text-green-600 text-4xl mb-2">✔</div>
-                    <div class="font-semibold mb-2" x-text="successMsg"></div>
-                    <button class="mt-2 px-4 py-2 bg-red-600 text-white rounded" @click="reset">Close</button>
-                </div>
-            </template>
-        </div>
+                {% endwith %}
+            {% endfor %}
+        {% else %}
+            <p>No menu items available.</p>
+        {% endif %}
     </div>
 </div>
 
-<!-- Alpine.js for modal logic -->
-<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<!-- Add JavaScript: category dropdown toggle + search results fetching -->
 <script>
-    function orderModal() {
-        return {
-            open: false,
-            step: 1,
-            itemName: '',
-            price: 0,
-            qty: 1,
-            orderType: 'now',
-            orderDate: '',
-            orderTime: '',
-            email: '',
-            mobile: '',
-            address: '',
-            delivery: 'Click & Collect',
-            loading: false,
-            error: '',
-            successMsg: 'Order placed successfully!',
+/* filepath: c:\Users\Admin\Music\sushi hotol\sarans\hotal\sushi_project\sushi\templates\menu.html - added JS */
+document.addEventListener('DOMContentLoaded', function () {
+    // Category dropdown toggle and click-to-scroll
+    const categoryButton = document.getElementById('categoryButton');
+    const categoryDropdown = document.getElementById('categoryDropdown');
 
-            openOrderModal(name, price) {
-                this.open = true;
-                this.step = 1;
-                this.itemName = name;
-                this.price = price;
-                this.qty = 1;
-                this.orderType = 'now';
-                this.orderDate = '';
-                this.orderTime = '';
-                this.email = '';
-                this.mobile = '';
-                this.address = '';
-                this.delivery = 'Click & Collect';
-                this.loading = false;
-                this.error = '';
-                this.successMsg = 'Order placed successfully!';
-            },
+    if (categoryButton && categoryDropdown) {
+        // Initialize hidden state using inline style (works without Tailwind)
+        categoryDropdown.style.display = 'none';
 
-            nextStep() {
-                this.step = 2;
-            },
+        categoryButton.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const isHidden = categoryDropdown.style.display === 'none' || !categoryDropdown.style.display;
+            categoryDropdown.style.display = isHidden ? 'block' : 'none';
+        });
 
-            validateAndNext() {
-                this.error = '';
-                if (!this.email || !this.mobile || !this.address || !this.delivery) {
-                    this.error = 'Please fill all required fields.';
-                    return;
-                }
-                if (this.orderType === 'later' && (!this.orderDate || !this.orderTime)) {
-                    this.error = 'Please select both date and time.';
-                    return;
-                }
-                this.step = 3;
-            },
-
-            submitOrder() {
-                this.error = '';
-                this.loading = true;
-
-                fetch('/order/submit/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': (document.querySelector('[name=csrfmiddlewaretoken]') || {}).value || ''
-                    },
-                    body: JSON.stringify({
-                        item: this.itemName,
-                        price: this.price,
-                        qty: this.qty,
-                        orderType: this.orderType,
-                        orderDate: this.orderType === 'later' ? this.orderDate : null,
-                        orderTime: this.orderType === 'later' ? this.orderTime : null,
-                        email: this.email,
-                        mobile: this.mobile,
-                        address: this.address,
-                        delivery: this.delivery
-                    })
-                })
-                    .then(res => res.json())
-                    .then(data => {
-                        this.loading = false;
-                        if (data.success) {
-                            this.successMsg = 'Order placed successfully!';
-                            this.step = 4;
-                        } else {
-                            this.error = data.error || 'Order failed. Try again.';
-                        }
-                    })
-                    .catch(() => {
-                        this.loading = false;
-                        this.error = 'Order failed. Try again.';
-                    });
-            },
-
-            reset() {
-                this.open = false;
-                this.step = 1;
-                this.itemName = '';
-                this.price = 0;
-                this.qty = 1;
-                this.orderType = 'now';
-                this.orderDate = '';
-                this.orderTime = '';
-                this.email = '';
-                this.mobile = '';
-                this.address = '';
-                this.delivery = 'Click & Collect';
-                this.loading = false;
-                this.error = '';
-                this.successMsg = 'Order placed successfully!';
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            if (!categoryDropdown.contains(e.target) && e.target !== categoryButton) {
+                categoryDropdown.style.display = 'none';
             }
-        }
+        });
+
+        // Click a category item -> scroll to category section
+        categoryDropdown.querySelectorAll('li[data-category]').forEach(li => {
+            li.addEventListener('click', function () {
+                const slug = li.getAttribute('data-category');
+                const target = document.getElementById('category-' + slug);
+                if (target) {
+                    target.scrollIntoView({behavior: 'smooth', block: 'start'});
+                }
+                categoryDropdown.style.display = 'none';
+            });
+        });
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('menuSearchInput');
-        const searchResultsDropdown = document.getElementById('searchResultsDropdown');
+    // Search input: debounce, fetch results, show dropdown, click result scrolls to item
+    const searchInput = document.getElementById('menuSearchInput');
+    const resultsDropdown = document.getElementById('searchResultsDropdown');
+    if (resultsDropdown) resultsDropdown.style.display = 'none';
 
-        if (searchInput && searchResultsDropdown) {
-            searchInput.addEventListener('input', function () {
-                const query = this.value.trim();
+    if (searchInput && resultsDropdown) {
+        let timer = null;
+        const debounceMs = 250;
 
-                if (query.length < 2) {
-                    searchResultsDropdown.classList.add('hidden');
-                    return;
-                }
+        function showResults(html) {
+            resultsDropdown.innerHTML = html;
+            resultsDropdown.style.display = html ? 'block' : 'none';
+        }
 
-                fetch(`/api/search_menu_items/?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
+        searchInput.addEventListener('input', function () {
+            const q = this.value.trim();
+            clearTimeout(timer);
+            if (!q) {
+                showResults('');
+                return;
+            }
+            timer = setTimeout(() => {
+                fetch(`/search_menu_items_api?q=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
                     .then(data => {
-                        searchResultsDropdown.innerHTML = '';
-                        if (data.length > 0) {
-                            data.forEach(item => {
-                                const resultCard = document.createElement('a');
-                                resultCard.href = item.url;
-                                resultCard.classList.add('block', 'p-4', 'hover:bg-gray-100', 'border-b', 'cursor-pointer');
-
-                                const imageHtml = item.image_url
-                                    ? `<img src="${item.image_url}" alt="${item.name}" class="w-16 h-16 object-cover rounded-md mr-4">`
-                                    : `<div class="w-16 h-16 bg-gray-200 rounded-md mr-4"></div>`;
-
-                                resultCard.innerHTML = `
-                                    <div class="flex items-center">
-                                        ${imageHtml}
-                                        <div>
-                                            <div class="font-semibold text-gray-800">${item.name}</div>
-                                            <div class="text-sm text-gray-600">${item.description || ''}</div>
-                                        </div>
-                                    </div>
-                                `;
-
-                                resultCard.addEventListener('click', function (e) {
-                                    e.preventDefault();
-                                    const targetElement = document.querySelector(item.url);
-                                    if (targetElement) {
-                                        targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        targetElement.classList.add('transition', 'duration-500', 'ease-in-out', 'ring-2', 'ring-red-500', 'ring-offset-2');
-                                        setTimeout(() => {
-                                            targetElement.classList.remove('ring-2', 'ring-red-500', 'ring-offset-2');
-                                        }, 2000);
-                                    }
-                                    searchResultsDropdown.classList.add('hidden');
-                                    searchInput.value = '';
-                                });
-
-                                searchResultsDropdown.appendChild(resultCard);
-                            });
-                            searchResultsDropdown.classList.remove('hidden');
-                        } else {
-                            searchResultsDropdown.innerHTML = '<div class="p-4 text-gray-500">No results found.</div>';
-                            searchResultsDropdown.classList.remove('hidden');
+                        if (!Array.isArray(data) || data.length === 0) {
+                            showResults('<div class="p-3 text-sm text-gray-500">No results</div>');
+                            return;
                         }
+                        const html = data.map(item => {
+                            const img = item.image_url ? `<img src="${item.image_url}" class="w-10 h-10 object-cover rounded mr-2" alt="">` : '';
+                            const desc = item.description ? `<div class="text-xs text-gray-600">${item.description.substring(0,80)}</div>` : '';
+                            // Use anchor-like element; prevent default link and scroll to DOM id
+                            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer flex items-center" data-id="${item.id}" data-anchor="#menu-item-${item.id}">
+                                        ${img}
+                                        <div>
+                                            <div class="font-medium text-gray-800">${item.name}</div>
+                                            ${desc}
+                                        </div>
+                                    </div>`;
+                        }).join('');
+                        showResults(html);
+
+                        // attach click handlers for result rows
+                        resultsDropdown.querySelectorAll('[data-anchor]').forEach(el => {
+                            el.addEventListener('click', function (e) {
+                                const anchor = this.getAttribute('data-anchor').replace('#','');
+                                const target = document.getElementById(anchor);
+                                if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+                                showResults('');
+                            });
+                        });
                     })
-                    .catch(error => {
-                        console.error('Error fetching search results:', error);
-                        searchResultsDropdown.classList.add('hidden');
+                    .catch(err => {
+                        showResults('<div class="p-3 text-sm text-red-500">Search error</div>');
+                        console.error('Search API error', err);
                     });
-            });
-        }
+            }, debounceMs);
+        });
 
-        // Category dropdown handling
-        const categoryButton = document.getElementById('categoryButton');
-        const categoryDropdown = document.getElementById('categoryDropdown');
-        const categoryLinks = document.querySelectorAll('#categoryDropdown [data-category]');
-
-        if (categoryButton && categoryDropdown) {
-            categoryButton.addEventListener('click', function (e) {
-                e.stopPropagation();
-                categoryDropdown.classList.toggle('hidden');
-            });
-
-            categoryLinks.forEach(link => {
-                link.addEventListener('click', function () {
-                    const categorySlug = this.dataset.category;
-                    const categoryElement = document.getElementById(`category-${categorySlug}`);
-                    if (categoryElement) {
-                        categoryElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    }
-                    categoryDropdown.classList.add('hidden');
-                });
-            });
-
-            document.addEventListener('click', function (e) {
-                if (!searchInput?.contains(e.target) && !searchResultsDropdown?.contains(e.target)) {
-                    searchResultsDropdown?.classList.add('hidden');
-                }
-                if (!categoryButton.contains(e.target) && !categoryDropdown.contains(e.target)) {
-                    categoryDropdown.classList.add('hidden');
-                }
-            });
-        }
-    });
+        // Click outside should close search results
+        document.addEventListener('click', function (e) {
+            if (!resultsDropdown.contains(e.target) && e.target !== searchInput) {
+                resultsDropdown.style.display = 'none';
+            }
+        });
+    }
+});
 </script>
 
 {% endblock %}

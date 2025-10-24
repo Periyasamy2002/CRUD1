@@ -97,6 +97,56 @@ class Order(models.Model):
     def __str__(self):
         return f"{self.item} x{self.qty} ({self.email})"
 
+    # Added helper to return a simple dict for templates / debugging
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "item": self.item,
+            "price": str(self.price),
+            "qty": self.qty,
+            "order_type": self.order_type,
+            "order_date": self.order_date.isoformat() if self.order_date else None,
+            "order_time": self.order_time.isoformat() if self.order_time else None,
+            "email": self.email,
+            "mobile": self.mobile,
+            "address": self.address,
+            "delivery": self.delivery,
+            "created_at": self.created_at.isoformat(),
+            "status": self.status,
+        }
+
+# ---------------- Contact ----------------
+class Contact(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='pending', choices=[
+        ('pending', 'Pending'),
+        ('responded', 'Responded'),
+    ])
+
+    def __str__(self):
+        return f"{self.name} - {self.created_at.date()}"
+
+class TableReservation(models.Model):
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    phone = models.CharField(max_length=20)
+    date = models.DateField()
+    time = models.TimeField()
+    guests = models.PositiveSmallIntegerField()
+    special_requests = models.TextField(blank=True, null=True)
+    status = models.CharField(max_length=20, default='pending', choices=[
+        ('pending', 'Pending'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+    ])
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.date} {self.time}"
+
 # If you want to add a custom admin model, you can do so like this:
 # from django.contrib.auth.models import AbstractUser
 # class CustomAdminUser(AbstractUser):

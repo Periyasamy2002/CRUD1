@@ -58,6 +58,14 @@ urlpatterns = [
 
     # --- Dashboard ---
     path('dashboard/', views.dashboard, name='dashboard'),
+
+    # New: cart page
+    path('cart/', views.cart_page, name='cart'),
+
+    # ----------- Admin 2 Routes -----------
+    path('admin2/contacts/', views.admin_contact_list, name='admin_contact_list'),
+    path('admin2/reservations/', views.admin_reservations, name='admin_reservations'),
+    path('admin2/reservations/<int:pk>/update-status/', views.update_reservation_status, name='update_reservation_status'),
 ]
 
 if settings.DEBUG:
