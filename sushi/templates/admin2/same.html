@@ -1,0 +1,404 @@
+{% extends 'admin2/base2.html' %}
+{% load static %}
+
+{% block content %}
+
+<head>
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<style>
+    :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --muted: #68708a;
+        --accent: #2f80ed;
+        --success: #27ae60;
+        --danger: #e74c3c;
+        --shadow: 0 6px 18px rgba(27, 40, 79, 0.06);
+    }
+
+    body {
+        font-family: "Inter", Arial, sans-serif;
+        background: var(--bg);
+        color: #222;
+        margin: 0;
+        padding: 18px;
+    }
+
+    .dashboard {
+        max-width: 1300px;
+        margin: auto;
+    }
+
+    .dash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 18px;
+    }
+
+    .dash-title h1 {
+        font-size: 24px;
+        margin: 0;
+    }
+
+    .dash-title p {
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .control-select,
+    .control-input {
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #e6e9ef;
+        background: var(--card);
+        font-size: 13px;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .card {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 14px;
+        box-shadow: var(--shadow);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .card .icon {
+        width: 52px;
+        height: 52px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 20px;
+    }
+
+    .icon.orders {
+        background: linear-gradient(135deg, #4f46e5, #3b82f6);
+    }
+
+    .icon.revenue {
+        background: linear-gradient(135deg, #10b981, #06b6d4);
+    }
+
+    .icon.pending {
+        background: linear-gradient(135deg, #f59e0b, #f97316);
+    }
+
+    .icon.delivered {
+        background: linear-gradient(135deg, #14b8a6, #06b6d4);
+    }
+
+    .layout {
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 14px;
+    }
+
+    .panel {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    .recent-orders table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+    }
+
+    .recent-orders th,
+    .recent-orders td {
+        padding: 10px 8px;
+        border-bottom: 1px solid #f1f3f6;
+    }
+
+    .status {
+        padding: 6px 8px;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #fff;
+    }
+
+    .status.pending {
+        background: linear-gradient(90deg, #f97316, #f59e0b);
+    }
+
+    .status.confirmed {
+        background: linear-gradient(90deg, #06b6d4, #3b82f6);
+    }
+
+    .status.delivered {
+        background: linear-gradient(90deg, #10b981, #06b6d4);
+    }
+
+    .extra-panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 14px;
+        margin-top: 18px;
+    }
+
+    .list,
+    .feedback {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0 0;
+    }
+
+    .list li,
+    .feedback li {
+        padding: 8px 0;
+        border-bottom: 1px solid #f2f3f6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+    }
+
+    .feedback li p {
+        margin: 0;
+        color: #333;
+    }
+
+    .feedback small {
+        color: var(--muted);
+    }
+
+    .stats-footer {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+    }
+
+    @media (max-width: 1000px) {
+        .layout {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+<div class="dashboard">
+    <div class="dash-header">
+        <div class="dash-title">
+            <h1>Admin Dashboard</h1>
+            <p>Overview of orders, customers, and performance metrics</p>
+        </div>
+
+        <div class="controls">
+            <select class="control-select" id="dateRange">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+            </select>
+            <input class="control-input" type="text" id="quickSearch" placeholder="Search orders..."
+                onkeyup="filterOrders()">
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid">
+        <div class="card">
+            <div class="icon orders"><i class="fas fa-shopping-basket"></i></div>
+            <div class="meta">
+                <div class="label">Total Orders</div>
+                <div class="value" id="totalOrders">{{ total_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon revenue"><i class="fas fa-dollar-sign"></i></div>
+            <div class="meta">
+                <div class="label">Revenue</div>
+                <div class="value">৳ <span id="totalRevenue">{{ total_revenue|default_if_none:"0.00" }}</span></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon pending"><i class="fas fa-clock"></i></div>
+            <div class="meta">
+                <div class="label">Pending</div>
+                <div class="value" id="pendingOrders">{{ pending_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="icon delivered"><i class="fas fa-truck"></i></div>
+            <div class="meta">
+                <div class="label">Delivered</div>
+                <div class="value" id="deliveredOrders">{{ delivered_orders|default_if_none:"0" }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="layout">
+        <div class="panel">
+            <div class="recent-head">
+                <strong>Recent Orders</strong>
+                <small>{{ recent_orders|length }} shown</small>
+            </div>
+
+            <div class="recent-orders">
+                <table id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Placed</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in recent_orders|slice:":8" %}
+                        <tr>
+                            <td>#{{ order.id }}</td>
+                            <td>{{ order.item|default_if_none:"—" }}</td>
+                            <td>{{ order.qty|default_if_none:"0" }}</td>
+                            <td>৳ {{ order.price|default_if_none:"0.00" }}</td>
+                            <td>
+                                {% if order.status == "pending" %}
+                                <span class="status pending"><i class="fas fa-hourglass-half"></i> Pending</span>
+                                {% elif order.status == "delivered" %}
+                                <span class="status delivered"><i class="fas fa-truck"></i> Delivered</span>
+                                {% else %}
+                                <span class="status confirmed"><i class="fas fa-check-circle"></i> {{
+                                    order.status|capfirst }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6">No recent orders</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="panel">
+            <strong>Sales Snapshot</strong>
+            <canvas id="salesChart" height="220"></canvas>
+
+            <div class="stats-footer">
+                <div><i class="fas fa-user-plus"></i> New customers: <strong>{{ new_customers|default_if_none:"0"
+                        }}</strong></div>
+                <div><i class="fas fa-percentage"></i> Growth Rate: <strong>{{ growth_rate|default_if_none:"0"
+                        }}%</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Panels -->
+    <div class="extra-panels">
+        <div class="panel">
+            <strong>Top Customers</strong>
+            <ul class="list">
+                {% for customer in top_customers|slice:":5" %}
+                <li>
+                    <i class="fas fa-user-circle"></i>
+                    {{ customer.name }} — <span>৳{{ customer.total_spent }}</span>
+                </li>
+                {% empty %}
+                <li>No customer data</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="panel">
+            <strong>Popular Items</strong>
+            <ul class="list">
+                {% for item in popular_items|slice:":5" %}
+                <li>
+                    <i class="fas fa-utensils"></i>
+                    {{ item.name }} — <span>{{ item.total_sold }} sold</span>
+                </li>
+                {% empty %}
+                <li>No item data</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="panel">
+            <strong>Recent Feedback</strong>
+            <ul class="feedback">
+                {% for feedback in recent_feedback|slice:":4" %}
+                <li>
+                    <p><i class="fas fa-comment-dots"></i> {{ feedback.message }}</p>
+                    <small>– {{ feedback.user_name }} | {{ feedback.created_at|date:"Y-m-d" }}</small>
+                </li>
+                {% empty %}
+                <li>No feedback yet</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Count animation
+    function animateCount(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const end = parseFloat(el.textContent.replace(/[^\d.]/g, '')) || 0;
+        let start = 0;
+        const duration = 700;
+        const startTime = Date.now();
+        (function tick() {
+            const progress = Math.min(1, (Date.now() - startTime) / duration);
+            el.textContent = Math.floor(progress * end);
+            if (progress < 1) requestAnimationFrame(tick);
+        })();
+    }
+    ['totalOrders', 'pendingOrders', 'deliveredOrders'].forEach(animateCount);
+
+    // Search filter
+    function filterOrders() {
+        const q = document.getElementById('quickSearch').value.toLowerCase();
+        const rows = document.querySelectorAll('#ordersTable tbody tr');
+        rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
+    }
+
+    // Chart.js - Sales chart
+    const ctx = document.getElementById('salesChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels| safe }},
+    datasets: [{
+        label: 'Revenue',
+        data: {{ chart_data| safe }},
+        borderColor: '#2f80ed',
+        backgroundColor: 'rgba(47,128,237,0.1)',
+        tension: 0.3,
+        fill: true
+                }]
+            },
+    options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+    }
+</script>
+
+{% endblock %}

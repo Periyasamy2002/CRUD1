@@ -1355,3 +1355,175 @@ function cartPage() {
 }
 </script>
 {% endblock %}
+
+
+
+<!-- this old order food table  -->
+
+{% extends "admin2/base2.html" %}
+{% block title %}Order Details{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h2 class="text-3xl font-semibold mb-6 text-gray-800">Order Details</h2>
+    
+    <div class="overflow-x-auto shadow-lg rounded-lg">
+        <table class="min-w-full bg-white border border-gray-200">
+            <thead class="bg-gray-100 text-gray-700 uppercase text-sm font-semibold">
+                <tr>
+                    <th class="px-4 py-3 border">Item</th>
+                    <th class="px-4 py-3 border">Qty</th>
+                    <th class="px-4 py-3 border">Total</th>
+                    <th class="px-4 py-3 border">Status</th>
+                    <th class="px-4 py-3 border text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="text-gray-800">
+                {% for order in orders %}
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 border font-medium">{{ order.item }}</td>
+                    <td class="px-4 py-3 border text-center">{{ order.qty }}</td>
+                    <td class="px-4 py-3 border text-right">{{ order.price|floatformat:2 }} CHF</td>
+                    <td id="status-{{ order.id }}" class="px-4 py-3 border text-center font-semibold 
+                        {% if order.status == 'Accepted' %}bg-green-100 text-green-700
+                        {% elif order.status == 'Making' %}bg-yellow-100 text-yellow-700
+                        {% elif order.status == 'Ready to Collect' %}bg-blue-100 text-blue-700
+                        {% elif order.status == 'Delivered' %}bg-purple-100 text-purple-700
+                        {% elif order.status == 'Cancelled' %}bg-red-100 text-red-700
+                        {% endif %}">
+                        {{ order.status }}
+                        {% if order.cancel_reason %}
+                        <br><small class="text-gray-600 italic">Reason: {{ order.cancel_reason }}</small>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 border text-center">
+                        <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="reason" class="cancel-reason-input">
+                            <div class="flex flex-wrap gap-2 justify-center">
+                                <button type="submit" name="action" value="accept" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-xs">Accept</button>
+                                <button type="submit" name="action" value="making" class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded text-xs">Making</button>
+                                <button type="submit" name="action" value="collect" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-xs">Collect</button>
+                                <button type="submit" name="action" value="delivered" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-1 rounded text-xs">Deliver</button>
+                                <button type="submit" name="action" value="cancel" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs cancel-btn">Cancel</button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-6 text-gray-500">No orders found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Cancel Reason Modal -->
+<div id="cancel-modal" class="fixed inset-0 bg-gray-800 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white p-6 rounded-lg shadow-2xl w-full max-w-md mx-4">
+        <h3 class="text-xl font-semibold mb-3 text-gray-800">Cancel Order</h3>
+        <p class="text-sm text-gray-600 mb-3">Please provide a reason for cancellation:</p>
+        <textarea id="cancel-reason-textarea" class="w-full p-2 border rounded-lg focus:ring focus:ring-red-200" rows="4" placeholder="Enter your reason..."></textarea>
+        <div class="mt-5 flex justify-end gap-3">
+            <button id="modal-cancel-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">Go Back</button>
+            <button id="modal-confirm-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded">Confirm Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('cancel-modal');
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+    const reasonInput = document.getElementById('cancel-reason-textarea');
+    const cancelButtons = document.querySelectorAll('.cancel-btn');
+    let activeForm = null;
+
+    cancelButtons.forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            activeForm = btn.closest('form');
+            modal.classList.remove('hidden');
+            setTimeout(() => reasonInput.focus(), 100);
+        });
+    });
+
+    function closeModal() {
+        reasonInput.value = '';
+        modal.classList.add('hidden');
+        activeForm = null;
+    }
+
+    cancelBtn.addEventListener('click', closeModal);
+
+    confirmBtn.addEventListener('click', async () => {
+        try {
+            if (!activeForm) return;
+            
+            const reason = reasonInput.value.trim();
+            if (!reason) {
+                alert('Please enter a reason for cancellation.');
+                return;
+            }
+
+            const orderId = activeForm.dataset.orderId;
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+            // Update the hidden input in the form
+            const hiddenReasonInput = activeForm.querySelector('.cancel-reason-input');
+            hiddenReasonInput.value = reason;
+
+            // Use the form's built-in data with the updated reason
+            const formData = new FormData(activeForm);
+
+            const response = await fetch(activeForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+            }
+
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error('Server did not return JSON');
+            }
+
+            const data = await response.json();
+            
+            if (data.status === 'success') {
+                const statusCell = document.getElementById(`status-${orderId}`);
+                if (statusCell) {
+                    statusCell.innerHTML = `Cancelled<br><small class="text-gray-600 italic">Reason: ${escapeHtml(reason)}</small>`;
+                    statusCell.className = 'px-4 py-3 border text-center font-semibold bg-red-100 text-red-700';
+                }
+                closeModal();
+                location.reload();
+            } else {
+                throw new Error(data.message || 'Failed to cancel order');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Failed to process cancellation. Please try again.');
+        }
+    });
+
+    modal.addEventListener('click', e => {
+        if (e.target === modal) closeModal();
+    });
+
+    function escapeHtml(str) {
+        return str.replace(/[&<>"']/g, match => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
+        }[match]));
+    }
+});
+</script>
+{% endblock %}

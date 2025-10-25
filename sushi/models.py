@@ -93,6 +93,7 @@ class Order(models.Model):
     delivery = models.CharField(max_length=40, choices=DELIVERY_CHOICES)
     created_at = models.DateTimeField(default=timezone.now)
     status = models.CharField(max_length=30, default='pending')
+    cancellation_reason = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.item} x{self.qty} ({self.email})"
