@@ -14,7 +14,14 @@
 
     <!-- Current Status -->
     <div class="mb-4">
-        <p>Status: <span class="font-semibold text-green-600">{{ order.status }}</span></p>
+        {% if order.status == 'Cancelled' %}
+            <p>Status: <span class="font-semibold text-red-600">{{ order.status }}</span></p>
+            {% if order.cancellation_reason %}
+                <p class="mt-2 text-sm text-gray-700"><b>Reason:</b> {{ order.cancellation_reason }}</p>
+            {% endif %}
+        {% else %}
+            <p>Status: <span class="font-semibold text-green-600">{{ order.status }}</span></p>
+        {% endif %}
     </div>
 
     <hr class="my-6">

@@ -391,69 +391,142 @@ def menuitem_update(request, pk):
 
 @csrf_exempt
 def order_submit(request):
-    # Accept both single-item payloads and a cart array from cart.html
-    if not request.user.is_authenticated:
-        return JsonResponse({'success': False, 'error': 'Please log in to place an order.'}, status=401)
-    if request.method == 'POST':
-        try:
-            data = json.loads(request.body)
-            # If cart array is provided, create an Order for each cart item
-            cart = data.get('cart')
-            if cart and isinstance(cart, list) and len(cart) > 0:
-                # Basic validation: require mobile, address, delivery at top level
-                mobile = data.get('mobile')
-                address = data.get('address')
-                delivery = data.get('delivery')
-                order_type = data.get('orderType', 'now')
-                order_date = data.get('orderDate') if order_type == 'later' else None
-                order_time = data.get('orderTime') if order_type == 'later' else None
+    """
+    Accepts both JSON (AJAX) and regular form POSTs.
+    Supports:
+      - cart: [ {name, price, qty}, ... ]  (JSON array)
+      - single item: item, price, qty, mobile, address, delivery, orderType
+    For guest users, an 'email' field is required.
+    On success:
+      - For JSON requests: returns JsonResponse with created order ids
+      - For form POSTs: stores created ids in session['last_order_ids'] and redirects to cart_page
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
 
-                if not all([mobile, address, delivery]):
-                    return JsonResponse({'success': False, 'error': 'Missing required contact/delivery fields.'})
+    # Determine request type (JSON/AJAX vs form)
+    is_json = request.content_type == 'application/json' or request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
-                created_ids = []
-                for c in cart:
-                    name = c.get('name') or c.get('item') or c.get('item_name')
-                    price = c.get('price') or 0
-                    qty = c.get('qty') or 1
-                    if not name:
-                        return JsonResponse({'success': False, 'error': 'Cart item missing name.'})
-                    order = Order.objects.create(
-                        item=name,
-                        price=price,
-                        qty=qty,
-                        order_type=order_type,
-                        order_date=order_date,
-                        order_time=order_time,
-                        email=request.user.email,
-                        mobile=mobile,
-                        address=address,
-                        delivery=delivery,
-                    )
-                    created_ids.append(order.id)
-                return JsonResponse({'success': True, 'order_ids': created_ids})
-            else:
-                # Fallback to single-item payload for compatibility
-                required = ['item', 'price', 'qty', 'orderType', 'mobile', 'address', 'delivery']
-                for field in required:
-                    if not data.get(field):
-                        return JsonResponse({'success': False, 'error': f'Missing {field}.'})
+    try:
+        # Parse payload
+        if is_json:
+            try:
+                data = json.loads(request.body.decode('utf-8') or '{}')
+            except Exception:
+                return JsonResponse({'success': False, 'error': 'Invalid JSON payload'}, status=400)
+        else:
+            # POST form; attempt to read a JSON 'cart' field if present
+            data = request.POST.dict()
+            if 'cart' in request.POST:
+                try:
+                    data['cart'] = json.loads(request.POST['cart'])
+                except Exception:
+                    data['cart'] = None
+
+        # Determine email (guest must provide, logged-in users may omit)
+        email = data.get('email') or (request.user.email if getattr(request, 'user', None) and request.user.is_authenticated else None)
+        if not email:
+            if is_json:
+                return JsonResponse({'success': False, 'error': 'Email is required for guest orders.'}, status=400)
+            messages.error(request, 'Email is required to place an order.')
+            return redirect('cart_page')
+
+        created_ids = []
+        cart = data.get('cart')
+        # Normalize some possible field names
+        def _num(v, default=0):
+            try:
+                return float(v)
+            except Exception:
+                return default
+
+        if cart and isinstance(cart, list):
+            # Bulk/cart create
+            mobile = data.get('mobile') or data.get('phone') or ''
+            address = data.get('address') or ''
+            delivery = data.get('delivery') or ''
+            order_type = data.get('orderType') or data.get('order_type') or 'now'
+            order_date = data.get('orderDate') if order_type == 'later' else None
+            order_time = data.get('orderTime') if order_type == 'later' else None
+
+            # Simple contact validation for cart orders
+            if not (mobile and address and delivery):
+                if is_json:
+                    return JsonResponse({'success': False, 'error': 'Missing contact/delivery info for cart order.'}, status=400)
+                messages.error(request, 'Please provide phone, address and delivery option.')
+                return redirect('cart_page')
+
+            for c in cart:
+                name = c.get('name') or c.get('item') or c.get('item_name')
+                price = _num(c.get('price'), 0)
+                qty = int(c.get('qty') or c.get('quantity') or 1)
+                if not name:
+                    if is_json:
+                        return JsonResponse({'success': False, 'error': 'Cart item missing name.'}, status=400)
+                    messages.error(request, 'One of the cart items is missing a name.')
+                    return redirect('cart_page')
                 order = Order.objects.create(
-                    item=data['item'],
-                    price=data['price'],
-                    qty=data['qty'],
-                    order_type=data['orderType'],
-                    order_date=data.get('orderDate') or None,
-                    order_time=data.get('orderTime') or None,
-                    email=request.user.email,
-                    mobile=data['mobile'],
-                    address=data['address'],
-                    delivery=data['delivery'],
+                    item=name,
+                    price=price,
+                    qty=qty,
+                    order_type=order_type,
+                    order_date=order_date,
+                    order_time=order_time,
+                    email=email,
+                    mobile=mobile,
+                    address=address,
+                    delivery=delivery,
                 )
-                return JsonResponse({'success': True, 'order_id': order.id})
-        except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
-    return JsonResponse({'success': False, 'error': 'Invalid request'})
+                created_ids.append(order.id)
+        else:
+            # Single item flow (form or JSON)
+            item = data.get('item') or data.get('name')
+            price = _num(data.get('price') or data.get('amount'), 0)
+            qty = int(data.get('qty') or data.get('quantity') or 1)
+            mobile = data.get('mobile') or data.get('phone') or ''
+            address = data.get('address') or ''
+            delivery = data.get('delivery') or ''
+            order_type = data.get('orderType') or data.get('order_type') or 'now'
+            order_date = data.get('orderDate') if order_type == 'later' else None
+            order_time = data.get('orderTime') if order_type == 'later' else None
+
+            # Validate required fields
+            if not all([item, price is not None, qty, mobile, address, delivery]):
+                if is_json:
+                    return JsonResponse({'success': False, 'error': 'Missing required fields.'}, status=400)
+                messages.error(request, 'Please fill all required order fields.')
+                return redirect('cart_page')
+
+            order = Order.objects.create(
+                item=item,
+                price=price,
+                qty=qty,
+                order_type=order_type,
+                order_date=order_date,
+                order_time=order_time,
+                email=email,
+                mobile=mobile,
+                address=address,
+                delivery=delivery,
+            )
+            created_ids.append(order.id)
+
+        # store created ids in session so cart.html can show last successful order(s)
+        request.session['last_order_ids'] = created_ids
+
+        if is_json:
+            return JsonResponse({'success': True, 'order_ids': created_ids})
+        else:
+            messages.success(request, 'Order placed successfully.')
+            return redirect('cart_page')
+
+    except Exception as e:
+        # Log the error and respond appropriately
+        # (keep server-rendered behavior friendly)
+        if is_json:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+        messages.error(request, f'Failed to place order: {e}')
+        return redirect('cart_page')
 
 @login_required
 def order_action(request, order_id):
@@ -472,10 +545,15 @@ def order_action(request, order_id):
 @login_required
 def order_action_admin(request, order_id):
     if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
         return redirect('admin2_login')
+
     order = get_object_or_404(Order, id=order_id)
+
     if request.method == 'POST':
         action = request.POST.get('action')
+        
         if action == 'accept':
             order.status = 'Accepted'
             order.save()
@@ -489,9 +567,27 @@ def order_action_admin(request, order_id):
             order.status = 'Delivered'
             order.save()
         elif action == 'cancel':
+            reason = request.POST.get('reason')
             order.status = 'Cancelled'
+            order.cancellation_reason = reason
             order.save()
+            # Robust AJAX detection: allow either header key variant
+            is_ajax = (
+                request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+                request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            )
+            if is_ajax:
+                return JsonResponse({'status': 'success', 'reason': reason})
             return redirect('order_food_table')
+
+    # If not POST or unknown action, respond for AJAX
+    is_ajax_req = (
+        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
+        request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+    )
+    if is_ajax_req:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method or action'}, status=400)
+        
     return redirect('order_food_table')
 
 @login_required
@@ -565,16 +661,8 @@ def order_food_table(request):
         status__in=['Delivered', 'Cancelled']
     ).order_by('-created_at')
     
-    # Group orders by status for better organization
-    orders_by_status = {
-        'pending': orders.filter(status='pending'),
-        'accepted': orders.filter(status='Accepted'),
-        'making': orders.filter(status='Making'),
-        'ready': orders.filter(status='Ready to Collect')
-    }
-    
     return render(request, 'admin2/order_food_table.html', {
-        'orders_by_status': orders_by_status,
+        'orders': orders,
         'active_tab': 'food_orders'
     })
 
@@ -724,15 +812,41 @@ def admin_manage(request):
 # sushi/views.py
 from django.shortcuts import render
 
+@login_required
 def order_card_list(request):
-    return render(request, 'order_card_list.html')
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
+    return render(request, 'order_card_list.html', {'orders': orders})
 
+@login_required
 def order_card_detail(request, pk):
-    return render(request, 'order_card_detail.html')
-    return render(request, 'order_card_detail.html', {'pk': pk})
+    order = get_object_or_404(Order, pk=pk, email=request.user.email)
+    
+    steps = ['pending', 'Accepted', 'Making', 'Ready to Collect', 'Delivered']
+    
+    try:
+        current_step_index = steps.index(order.status)
+    except ValueError:
+        current_step_index = -1
+
+    context = {
+        'order': order,
+        'steps': steps,
+        'current_step_index': current_step_index,
+    }
+    return render(request, 'order_card_detail.html', context)
+
 
 def cart_page(request):
-    return render(request, 'cart.html')
+    """
+    Renders cart page. When coming from a successful order_submit (form), the
+    created order ids are saved in session['last_order_ids'] and displayed here
+    as last_orders (then removed from session).
+    """
+    last_orders = []
+    last_ids = request.session.pop('last_order_ids', None)
+    if last_ids:
+        last_orders = list(Order.objects.filter(id__in=last_ids).order_by('-created_at'))
+    return render(request, 'cart.html', {'last_orders': last_orders})
 
 # ---------------- Admin Contact & Reservation Management ----------------
 

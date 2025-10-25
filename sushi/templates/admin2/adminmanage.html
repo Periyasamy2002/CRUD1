@@ -1,135 +1,28 @@
 {% extends 'admin2/base2.html' %}
+{% load static %}
 
 {% block content %}
 <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root{
-            --bg:#f6f7fb;
-            --card:#ffffff;
-            --muted:#68708a;
-            --accent:#2f80ed;
-            --success:#27ae60;
-            --danger:#e74c3c;
-            --glass: rgba(255,255,255,0.6);
-        }
-        body { font-family: "Inter", Arial, sans-serif; background: var(--bg); color:#222; margin:0; padding:18px; }
-        .dashboard {
-            max-width:1200px;
-            margin:0 auto;
-        }
-        .dash-header {
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:12px;
-            margin-bottom:18px;
-        }
-        .dash-title {
-            display:flex;
-            flex-direction:column;
-        }
-        .dash-title h1 { margin:0; font-size:22px; }
-        .dash-title p { margin:2px 0 0; color:var(--muted); font-size:13px; }
-
-        .controls { display:flex; gap:8px; align-items:center; }
-        .control-select, .control-input {
-            padding:8px 10px;
-            border-radius:8px;
-            border:1px solid #e6e9ef;
-            background:var(--card);
-            font-size:13px;
-        }
-
-        .grid {
-            display:grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap:14px;
-            margin-bottom:18px;
-        }
-        .card {
-            background:var(--card);
-            border-radius:10px;
-            padding:14px;
-            box-shadow:0 6px 18px rgba(27,40,79,0.06);
-            display:flex;
-            align-items:center;
-            gap:12px;
-        }
-        .card .icon {
-            width:52px;
-            height:52px;
-            border-radius:10px;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            color:#fff;
-            font-size:20px;
-        }
-        .card .meta { flex:1; }
-        .card .meta .label { font-size:12px; color:var(--muted); }
-        .card .meta .value { font-size:18px; font-weight:600; margin-top:4px; }
-
-        .icon.orders { background:linear-gradient(135deg,#4f46e5,#3b82f6); }
-        .icon.revenue { background:linear-gradient(135deg,#10b981,#06b6d4); }
-        .icon.pending { background:linear-gradient(135deg,#f59e0b,#f97316); }
-        .icon.delivered { background:linear-gradient(135deg,#14b8a6,#06b6d4); }
-
-        .layout {
-            display:grid;
-            grid-template-columns: 1fr 420px;
-            gap:14px;
-            align-items:start;
-        }
-        .panel {
-            background:var(--card);
-            border-radius:10px;
-            padding:14px;
-            box-shadow:0 6px 18px rgba(27,40,79,0.06);
-        }
-        .chart {
-            height:260px;
-            border-radius:8px;
-            background:linear-gradient(180deg,#ffffff,#fbfdff);
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            color:var(--muted);
-            font-size:14px;
-        }
-
-        .recent-orders table {
-            width:100%;
-            border-collapse:collapse;
-            font-size:13px;
-        }
-        .recent-orders th, .recent-orders td {
-            padding:10px 8px;
-            text-align:left;
-            border-bottom:1px solid #f1f3f6;
-        }
-        .status { padding:6px 8px; border-radius:8px; font-size:12px; color:#fff; display:inline-block; }
-        .status.pending { background:var(--danger); background:linear-gradient(90deg,#f97316,#f59e0b); }
-        .status.confirmed { background:linear-gradient(90deg,#06b6d4,#3b82f6); }
-        .status.delivered { background:linear-gradient(90deg,#10b981,#06b6d4); }
-        .recent-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-
-        @media (max-width:1000px){
-            .grid { grid-template-columns: repeat(2, 1fr); }
-            .layout { grid-template-columns: 1fr; }
-        }
-        @media (max-width:600px){
-            .grid { grid-template-columns: 1fr; }
-            .dash-header { flex-direction:column; align-items:flex-start; gap:8px; }
-        }
+        /* small inline tweaks for loader & controls */
+        .controls { display:flex; gap:.5rem; align-items:center; }
+        .control-btn { background:#2f80ed;color:#fff;border:none;padding:.4rem .7rem;border-radius:6px;cursor:pointer; }
+        .control-btn.secondary { background:#555; }
+        .loader { display:none; width:28px; height:28px; border:3px solid rgba(0,0,0,0.08); border-top-color:#2f80ed; border-radius:50%; animation:spin .8s linear infinite; }
+        .loader.active { display:inline-block; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .small-note { font-size:.85rem;color:#666; }
     </style>
 </head>
 
-<div class="dashboard">
+<div class="dashboard" data-api-endpoint="{{ api_endpoint|default:'/admin/api/dashboard/' }}">
     <div class="dash-header">
         <div class="dash-title">
             <h1>Admin Dashboard</h1>
-            <p>Overview of orders, revenue and recent activity</p>
+            <p>Overview of orders, customers, and performance metrics</p>
         </div>
 
         <div class="controls">
@@ -139,9 +32,13 @@
                 <option value="90">Last 90 days</option>
             </select>
             <input class="control-input" type="text" id="quickSearch" placeholder="Search orders..." onkeyup="filterOrders()">
+            <button id="refreshBtn" class="control-btn" title="Refresh data"><i class="fas fa-sync-alt"></i></button>
+            <button id="exportBtn" class="control-btn secondary" title="Export visible orders to CSV"><i class="fas fa-file-csv"></i></button>
+            <div id="loader" class="loader" aria-hidden="true"></div>
         </div>
     </div>
 
+    <!-- Summary Cards -->
     <div class="grid">
         <div class="card">
             <div class="icon orders"><i class="fas fa-shopping-basket"></i></div>
@@ -176,11 +73,12 @@
         </div>
     </div>
 
+    <!-- Main Layout -->
     <div class="layout">
         <div class="panel">
             <div class="recent-head">
                 <strong>Recent Orders</strong>
-                <small style="color:var(--muted)">{{ recent_orders|length }} shown</small>
+                <small>{{ recent_orders|length }} shown</small>
             </div>
 
             <div class="recent-orders">
@@ -204,17 +102,17 @@
                             <td>৳ {{ order.price|default_if_none:"0.00" }}</td>
                             <td>
                                 {% if order.status == "pending" %}
-                                    <span class="status pending">Pending</span>
+                                    <span class="status pending"><i class="fas fa-hourglass-half"></i> Pending</span>
                                 {% elif order.status == "delivered" %}
-                                    <span class="status delivered">Delivered</span>
+                                    <span class="status delivered"><i class="fas fa-truck"></i> Delivered</span>
                                 {% else %}
-                                    <span class="status confirmed">{{ order.status|capfirst }}</span>
+                                    <span class="status confirmed"><i class="fas fa-check-circle"></i> {{ order.status|capfirst }}</span>
                                 {% endif %}
                             </td>
                             <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="6" style="color:var(--muted); padding:16px">No recent orders</td></tr>
+                        <tr><td colspan="6">No recent orders</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -223,49 +121,258 @@
 
         <div class="panel">
             <strong>Sales Snapshot</strong>
-            <div class="chart" id="chartPlaceholder">
-                <!-- Replace with a real chart (Chart.js, ApexCharts, etc.) -->
-                Chart placeholder — integrate chart library in future
-            </div>
-            <div style="margin-top:12px;color:var(--muted);font-size:13px">
-                New customers: <strong>{{ new_customers|default_if_none:"0" }}</strong>
+            <canvas id="salesChart" height="220"></canvas>
+
+            <div class="stats-footer">
+                <div><i class="fas fa-user-plus"></i> New customers: <strong>{{ new_customers|default_if_none:"0" }}</strong></div>
+                <div><i class="fas fa-percentage"></i> Growth Rate: <strong>{{ growth_rate|default_if_none:"0" }}%</strong></div>
             </div>
         </div>
     </div>
+
+    <!-- Additional Panels -->
+    <div class="extra-panels">
+        <div class="panel">
+            <strong>Top Customers</strong>
+            <ul class="list">
+                {% for customer in top_customers|slice:":5" %}
+                <li>
+                    <i class="fas fa-user-circle"></i>
+                    {{ customer.name }} — <span>৳{{ customer.total_spent }}</span>
+                </li>
+                {% empty %}
+                <li>No customer data</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="panel">
+            <strong>Popular Items</strong>
+            <ul class="list">
+                {% for item in popular_items|slice:":5" %}
+                <li>
+                    <i class="fas fa-utensils"></i>
+                    {{ item.name }} — <span>{{ item.total_sold }} sold</span>
+                </li>
+                {% empty %}
+                <li>No item data</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="panel">
+            <strong>Recent Feedback</strong>
+            <ul class="feedback">
+                {% for feedback in recent_feedback|slice:":4" %}
+                <li>
+                    <p><i class="fas fa-comment-dots"></i> {{ feedback.message }}</p>
+                    <small>– {{ feedback.user_name }} | {{ feedback.created_at|date:"Y-m-d" }}</small>
+                </li>
+                {% empty %}
+                <li>No feedback yet</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- keep existing template-rendered content as fallback -->
+    <!-- ...existing code... -->
+
 </div>
 
 <script>
-    // Simple count-up animation for numeric cards
-    function animateCount(id) {
+    // helpers
+    function formatNumber(n, decimals = 0) {
+        if (n === null || n === undefined) return '0';
+        const num = Number(n) || 0;
+        return num.toLocaleString(undefined, { maximumFractionDigits: decimals, minimumFractionDigits: decimals });
+    }
+
+    function formatCurrency(n) {
+        return formatNumber(n, 2);
+    }
+
+    function setLoader(active) {
+        const l = document.getElementById('loader');
+        if (!l) return;
+        l.classList.toggle('active', !!active);
+        l.setAttribute('aria-hidden', !active);
+    }
+
+    // preserve count animation but with formatting
+    function animateCount(id, endValue, decimals=0) {
         const el = document.getElementById(id);
         if (!el) return;
-        const end = parseFloat(el.textContent.replace(/[,৳\s]/g,'')) || 0;
+        const end = Number(endValue) || 0;
         let start = 0;
         const duration = 700;
-        const stepTime = Math.max(16, duration / Math.max(end,1));
         const startTime = Date.now();
         (function tick(){
-            const now = Date.now();
-            const progress = Math.min(1,(now - startTime)/duration);
-            const current = Math.floor(progress * end);
-            el.textContent = current.toLocaleString();
+            const progress = Math.min(1, (Date.now() - startTime) / duration);
+            const value = Math.floor(progress * (end - start) + start);
+            el.textContent = formatNumber(value, decimals);
             if (progress < 1) requestAnimationFrame(tick);
-            else el.textContent = end.toLocaleString();
         })();
     }
-    animateCount('totalOrders');
-    animateCount('pendingOrders');
-    animateCount('deliveredOrders');
 
-    // Quick client-side search for the recent orders table
+    // Search filter (keeps existing behavior)
     function filterOrders() {
-        const q = document.getElementById('quickSearch').value.toLowerCase().trim();
+        const q = document.getElementById('quickSearch').value.toLowerCase();
         const rows = document.querySelectorAll('#ordersTable tbody tr');
-        rows.forEach(row => {
-            const txt = row.textContent.toLowerCase();
-            row.style.display = q === '' || txt.includes(q) ? '' : 'none';
+        rows.forEach(r => r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none');
+    }
+
+    // Chart.js initialization with empty dataset so we can update later
+    const ctx = document.getElementById('salesChart');
+    let salesChart = null;
+    if (ctx) {
+        salesChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels|default:"[]"|safe }},
+                datasets: [{
+                    label: 'Revenue',
+                    data: {{ chart_data|default:"[]"|safe }},
+                    borderColor: '#2f80ed',
+                    backgroundColor: 'rgba(47,128,237,0.08)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { ticks: { callback: (v)=> v.toLocaleString() } }
+                }
+            }
         });
     }
+
+    // Build table rows from data (simple HTML generation)
+    function buildOrdersRows(orders) {
+        if (!Array.isArray(orders) || orders.length === 0) {
+            return '<tr><td colspan="6">No recent orders</td></tr>';
+        }
+        return orders.slice(0, 50).map(o => {
+            const status = (o.status || '').toLowerCase();
+            const statusHtml = status === 'pending'
+                ? '<span class="status pending"><i class="fas fa-hourglass-half"></i> Pending</span>'
+                : status === 'delivered'
+                ? '<span class="status delivered"><i class="fas fa-truck"></i> Delivered</span>'
+                : '<span class="status confirmed"><i class="fas fa-check-circle"></i> ' + (o.status ? (o.status.charAt(0).toUpperCase()+o.status.slice(1)) : '—') + '</span>';
+            const created = o.created_at ? new Date(o.created_at).toLocaleString() : '—';
+            return `<tr>
+                <td>#${o.id ?? '—'}</td>
+                <td>${o.item ?? '—'}</td>
+                <td>${o.qty ?? 0}</td>
+                <td>৳ ${formatCurrency(o.price ?? 0)}</td>
+                <td>${statusHtml}</td>
+                <td>${created}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function buildListItems(list, icon, valueSuffix='') {
+        if (!Array.isArray(list) || list.length === 0) return '<li>No data</li>';
+        return list.slice(0,5).map(it => `<li><i class="${icon}"></i> ${it.name ?? it.user_name ?? '—'} — <span>${it.total_spent ? '৳'+formatCurrency(it.total_spent) : (it.total_sold ? (it.total_sold + (valueSuffix || '')) : '')}</span></li>`).join('');
+    }
+
+    // CSV export of visible orders table
+    function exportVisibleOrdersCSV() {
+        const rows = Array.from(document.querySelectorAll('#ordersTable tbody tr')).filter(r=>r.style.display!=='none');
+        if (rows.length === 0) { alert('No orders to export'); return; }
+        const csv = [['Order ID','Item','Qty','Price','Status','Placed']];
+        rows.forEach(r=>{
+            const cols = Array.from(r.querySelectorAll('td')).map(td => td.textContent.trim().replace(/\n/g,' '));
+            csv.push(cols);
+        });
+        const csvText = csv.map(r => r.map(c => `"${c.replace(/"/g,'""')}"`).join(',')).join('\n');
+        const blob = new Blob([csvText], {type:'text/csv;charset=utf-8;'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'orders.csv';
+        document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    // Fetch dashboard JSON and patch DOM; API should return structure:
+    // { total_orders, total_revenue, pending_orders, delivered_orders, recent_orders:[...], chart_labels:[], chart_data:[], top_customers:[], popular_items:[], recent_feedback:[], new_customers, growth_rate }
+    async function fetchDashboard(opts={}) {
+        const root = document.querySelector('.dashboard');
+        if (!root) return;
+        const endpoint = (root.dataset.apiEndpoint || '/admin/api/dashboard/').replace(/\/+$/, '') + '/';
+        const params = new URLSearchParams();
+        if (opts.days) params.set('days', opts.days);
+        const url = endpoint + (params.toString() ? ('?'+params.toString()) : '');
+        setLoader(true);
+        try {
+            const resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('Network response not ok: ' + resp.status);
+            const data = await resp.json();
+
+            // Summary cards
+            animateCount('totalOrders', data.total_orders ?? {{ total_orders|default:0 }});
+            document.getElementById('totalRevenue') && (document.getElementById('totalRevenue').textContent = formatCurrency(data.total_revenue ?? {{ total_revenue|default:"0.00" }}));
+            animateCount('pendingOrders', data.pending_orders ?? {{ pending_orders|default:0 }});
+            animateCount('deliveredOrders', data.delivered_orders ?? {{ delivered_orders|default:0 }});
+
+            // Recent orders table
+            if (data.recent_orders) {
+                const tbody = document.querySelector('#ordersTable tbody');
+                if (tbody) tbody.innerHTML = buildOrdersRows(data.recent_orders);
+            }
+
+            // Chart update
+            if (salesChart && Array.isArray(data.chart_labels) && Array.isArray(data.chart_data)) {
+                salesChart.data.labels = data.chart_labels;
+                salesChart.data.datasets[0].data = data.chart_data;
+                salesChart.update();
+            }
+
+            // Stats footer
+            const newCustomersEl = document.querySelector('.stats-footer div:first-child strong');
+            if (newCustomersEl && data.new_customers !== undefined) newCustomersEl.textContent = data.new_customers;
+
+            const growthRateEl = document.querySelector('.stats-footer div:last-child strong');
+            if (growthRateEl && data.growth_rate !== undefined) growthRateEl.textContent = data.growth_rate;
+
+            // Lists: top customers, popular items, feedback
+            const topCustNode = document.querySelector('.extra-panels .panel:nth-child(1) .list');
+            if (topCustNode && data.top_customers) topCustNode.innerHTML = data.top_customers.length ? data.top_customers.slice(0,5).map(c=>`<li><i class="fas fa-user-circle"></i> ${c.name} — <span>৳${formatCurrency(c.total_spent)}</span></li>`).join('') : '<li>No customer data</li>';
+
+            const popularNode = document.querySelector('.extra-panels .panel:nth-child(2) .list');
+            if (popularNode && data.popular_items) popularNode.innerHTML = data.popular_items.length ? data.popular_items.slice(0,5).map(i=>`<li><i class="fas fa-utensils"></i> ${i.name} — <span>${i.total_sold} sold</span></li>`).join('') : '<li>No item data</li>';
+
+            const feedbackNode = document.querySelector('.extra-panels .panel:nth-child(3) .feedback');
+            if (feedbackNode && data.recent_feedback) feedbackNode.innerHTML = data.recent_feedback.length ? data.recent_feedback.slice(0,4).map(f=>`<li><p><i class="fas fa-comment-dots"></i> ${f.message}</p><small>– ${f.user_name} | ${new Date(f.created_at).toLocaleDateString()}</small></li>`).join('') : '<li>No feedback yet</li>';
+
+        } catch (err) {
+            console.error('Failed to fetch dashboard data:', err);
+            // leave server-rendered content as fallback; optional: show a small message
+        } finally {
+            setLoader(false);
+        }
+    }
+
+    // Wire up events
+    document.addEventListener('DOMContentLoaded', function(){
+        const refreshBtn = document.getElementById('refreshBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const dateRange = document.getElementById('dateRange');
+
+        if (refreshBtn) refreshBtn.addEventListener('click', ()=> fetchDashboard({ days: dateRange ? dateRange.value : undefined }));
+        if (exportBtn) exportBtn.addEventListener('click', exportVisibleOrdersCSV);
+        if (dateRange) dateRange.addEventListener('change', ()=> fetchDashboard({ days: dateRange.value }));
+
+        // initial fetch but only if API endpoint likely exists
+        // use a brief timeout to allow page to render fallback content quickly
+        setTimeout(()=> fetchDashboard({ days: dateRange ? dateRange.value : undefined }), 500);
+
+        // auto refresh every 5 minutes
+        setInterval(()=> fetchDashboard({ days: dateRange ? dateRange.value : undefined }), 5 * 60 * 1000);
+    });
 </script>
 
 {% endblock %}

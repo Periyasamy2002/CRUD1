@@ -17,16 +17,7 @@
             {% for order in orders %}
             <tr>
                 <td class="px-4 py-2 border">
-                    {% comment %} Show related object's name if present, otherwise fallback to stored value {% endcomment %}
-                    {% if order.item.name %}
-                        {{ order.item.name }}
-                    {% elif order.menu_item.name %}
-                        {{ order.menu_item.name }}
-                    {% elif order.food.name %}
-                        {{ order.food.name }}
-                    {% else %}
-                        {{ order.item }}
-                    {% endif %}
+                    {{ order.item }}
                 </td>
                 <td class="px-4 py-2 border">{{ order.qty }}</td>
                 <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
@@ -36,11 +27,12 @@
                 <td class="px-4 py-2 border">
                     <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
                         {% csrf_token %}
+                        <input type="hidden" name="reason" class="cancel-reason-input">
                         <button type="submit" name="action" value="accept" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Accept Order</button>
                         <button type="submit" name="action" value="making" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Making Order</button>
                         <button type="submit" name="action" value="collect" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Collect the Order</button>
-                        <button type="submit" name="action" value="delivered" class="bg-purple-500 text-white px-2 py-1 rounded text-xs">Deliver Order</button>
-                        <button type="submit" name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs">Cancel Order</button>
+                        <button type="submit" name="action" value="delivered" class="bg-purple-500 text-white px-2 py-1 rounded text-xs" onclick="return confirm('Are you sure you want to deliver this order?');">Deliver Order</button>
+                        <button type="submit" name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs cancel-btn">Cancel Order</button>
                     </form>
                 </td>
             </tr>
@@ -53,4 +45,60 @@
     </table>
 </div>
 
+<!-- Modal HTML -->
+<div id="cancel-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center">
+    <div class="bg-white p-6 rounded-lg shadow-xl w-1/3">
+        <h3 class="text-lg font-bold mb-4">Reason for Cancellation</h3>
+        <textarea id="cancel-reason-textarea" class="w-full p-2 border rounded" rows="4" placeholder="Please provide a reason..."></textarea>
+        <div class="mt-4 flex justify-end space-x-2">
+            <button id="modal-cancel-btn" class="bg-gray-500 text-white px-4 py-2 rounded">Go Back</button>
+            <button id="modal-confirm-btn" class="bg-red-500 text-white px-4 py-2 rounded">Confirm Cancellation</button>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.getElementById('cancel-modal');
+    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+    const modalCancelBtn = document.getElementById('modal-cancel-btn');
+    const reasonTextarea = document.getElementById('cancel-reason-textarea');
+    const cancelButtons = document.querySelectorAll('.cancel-btn');
+    let activeForm = null;
+
+    cancelButtons.forEach(button => {
+        // Remove existing onclick attribute to avoid conflict
+        button.removeAttribute('onclick');
+        
+        button.addEventListener('click', function(event) {
+            event.preventDefault(); // Stop the form from submitting immediately
+            activeForm = button.closest('form'); // Get the form associated with the clicked button
+            modal.style.display = 'flex'; // Show the modal
+        });
+    });
+
+    modalCancelBtn.addEventListener('click', function() {
+        modal.style.display = 'none'; // Hide the modal
+        reasonTextarea.value = ''; // Clear textarea
+    });
+
+    modalConfirmBtn.addEventListener('click', function() {
+        if (activeForm) {
+            const reasonInput = activeForm.querySelector('.cancel-reason-input');
+            if (reasonInput) {
+                reasonInput.value = reasonTextarea.value;
+            }
+            activeForm.submit();
+        }
+    });
+
+    // Also hide modal if clicking on the background
+    modal.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+            reasonTextarea.value = '';
+        }
+    });
+});
+</script>
 {% endblock %}

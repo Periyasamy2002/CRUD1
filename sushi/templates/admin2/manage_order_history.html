@@ -155,7 +155,7 @@
                     <th>Delivery</th>
                     <th>Created At</th>
                     <th>Status</th>
-                    
+                    <th>Reason for Cancellation</th>
                 </tr>
             </thead>
             <tbody>
@@ -176,6 +176,7 @@
                     <td>
                        {{ order.status }}
                     </td>
+                    <td>{{ order.cancellation_reason|default_if_none:"" }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
