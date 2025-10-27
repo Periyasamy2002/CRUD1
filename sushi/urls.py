@@ -66,6 +66,7 @@ urlpatterns = [
     path('admin2/contacts/', views.admin_contact_list, name='admin_contact_list'),
     path('admin2/reservations/', views.admin_reservations, name='admin_reservations'),
     path('admin2/reservations/<int:pk>/update-status/', views.update_reservation_status, name='update_reservation_status'),
+    path('admin2/reservations/<int:pk>/send-email/', views.send_confirmation_email, name='send_confirmation_email'),
 ]
 
 if settings.DEBUG:

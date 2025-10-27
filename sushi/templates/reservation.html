@@ -156,17 +156,29 @@
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
 
+            <label for="phone">Phone:</label>
+            <input type="tel" id="phone" name="phone" required>
+
             <label for="date">Date:</label>
             <input type="date" id="date" name="date" required>
 
             <label for="time">Time:</label>
             <input type="time" id="time" name="time" required>
 
-            <label for="people">Number of People:</label>
-            <input type="number" id="people" name="people" min="1" required>
+            <label for="guests">Number of People:</label>
+            <input type="number" id="guests" name="guests" min="1" required>
 
             <input type="submit" value="Reserve">
         </form>
     </div>
 </div>
+
+
+<script>
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+  // Set the min attribute to today's date
+  document.getElementById("date").setAttribute("min", today);
+</script>
+
 {% endblock %}

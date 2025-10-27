@@ -8,6 +8,9 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Prefetch
 import json
+from django.urls import reverse
+from django.conf import settings
+import logging
 
 from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
 from .forms import MenuItemForm, SpecialMenuForm
@@ -37,21 +40,34 @@ def menu(request):
 
 def contact(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        email = request.POST.get('email')
-        message = request.POST.get('message')
+        name = (request.POST.get('name') or '').strip()
+        email = (request.POST.get('email') or '').strip()
+        message = (request.POST.get('message') or '').strip()
 
-        # Save to DB
-        Contact.objects.create(name=name or 'Anonymous', email=email or '', message=message or '')
+        # Basic validation
+        if not email:
+            messages.error(request, 'Please provide a valid email address.')
+            return redirect('contact')
 
-        subject = f'New message from {name}'
+        # Save to DB (safe guard)
+        try:
+            Contact.objects.create(name=name or 'Anonymous', email=email, message=message)
+        except Exception as e:
+            logging.exception("Failed to save contact message")
+            messages.error(request, 'Failed to save your message. Please try again later.')
+            return redirect('contact')
+
+        subject = f'New message from {name or "Anonymous"}'
         full_message = f"From: {name} <{email}>\n\nMessage:\n{message}"
 
+        # Use configured DEFAULT_FROM_EMAIL as sender, and notify site owner(s)
         try:
-            send_mail(subject, full_message, email or None, ['saranvignesh55@gmail.com'])
+            send_mail(subject, full_message, settings.DEFAULT_FROM_EMAIL, [settings.EMAIL_HOST_USER])
             messages.success(request, 'Message sent successfully!')
-        except Exception:
-            messages.error(request, 'Failed to send message. Try again later.')
+        except Exception as e:
+            logging.exception("Failed to send contact notification email")
+            # Still treat as saved; inform user that email failed
+            messages.success(request, 'Message saved. Notification email could not be sent at this time.')
 
         return redirect('contact')
 
@@ -61,38 +77,44 @@ def table_reservation(request):
     if request.method == 'POST':
         name = request.POST.get('name')
         email = request.POST.get('email')
-        phone = request.POST.get('phone')
+        # Ensure phone is never None (prevent DB NOT NULL errors)
+        phone = request.POST.get('phone') or ''
         date = request.POST.get('date')
         time = request.POST.get('time')
-        guests = request.POST.get('guests') or 1
+        # accept either 'guests' or legacy 'people' field
+        guests = request.POST.get('guests') or request.POST.get('people') or 1
         special_requests = request.POST.get('special_requests', '')
 
         # Basic validation could be extended; here we save the reservation
         TableReservation.objects.create(
             name=name or 'Guest',
             email=email or '',
-            phone=phone or '',
+            phone=phone,
             date=date,
             time=time,
             guests=int(guests) if str(guests).isdigit() else 1,
             special_requests=special_requests
         )
 
-        # optional: send confirmation email (best-effort)
-        try:
-            send_mail(
-                'Reservation received',
-                f'Thank you {name}, your reservation for {date} at {time} has been received.',
-                'no-reply@example.com',
-                [email] if email else []
-            )
-        except Exception:
-            pass
+        # optional: send confirmation email (best-effort) only if email provided
+        if email:
+            try:
+                send_mail(
+                    'Reservation received',
+                    f'Thank you {name}, your reservation for {date} at {time} has been received.',
+                    'no-reply@example.com',
+                    [email]
+                )
+            except Exception:
+                pass
 
         messages.success(request, 'Reservation submitted. We will contact you to confirm.')
-        return redirect('table_reservation')
+        # Redirect to the correct URL name and include success flag for template
+        return redirect(reverse('reservation') + '?success=1')
 
-    return render(request, 'reservation.html')
+    # On GET, show reservation_success if query param present
+    reservation_success = request.GET.get('success') == '1'
+    return render(request, 'reservation.html', {'reservation_success': reservation_success})
 
 def order_menu(request):
     return render(request, 'order_menu.html')
@@ -903,4 +925,21 @@ def update_reservation_status(request, pk):
             except Exception as e:
                 messages.error(request, f'Status updated but failed to send notification: {str(e)}')
                 
+    return redirect('admin_reservations')
+
+@login_required
+def send_confirmation_email(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+        
+    reservation = get_object_or_404(TableReservation, pk=pk)
+    
+    subject = f'Your table reservation for {reservation.date} is confirmed'
+    message = f'Dear {reservation.name},\n\nYour table reservation for {reservation.date} at {reservation.time} has been confirmed.'
+    try:
+        send_mail(subject, message, 'saranvignesh55@gmail.com', [reservation.email])
+        messages.success(request, f'Confirmation email sent to {reservation.email}.')
+    except Exception as e:
+        messages.error(request, f'Failed to send confirmation email: {str(e)}')
+            
     return redirect('admin_reservations')
