@@ -110,9 +110,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                     <div>
                         <label class="block text-gray-600 mb-1">Delivery Method</label>
-                        <select x-model="delivery" class="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <select x-model="delivery" @change="validateDelivery()" class="w-full border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-red-400">
                             <option value="Click & Collect">Click & Collect (Free)</option>
-                            <option value="Free">Free Delivery</option>
+                            <!-- <option value="Free">Free Delivery</option> -->
                             <option value="Livraison Express 3.5km">Express Delivery (5 CHF)</option>
                         </select>
                     </div>
@@ -234,8 +234,20 @@ function cartPage() {
             }
         },
 
+        validateDelivery() {
+            if (this.delivery === 'Livraison Express 3.5km') {
+                this.error = 'For now, we only offer takeaway. Home delivery is not available at the moment, but will be coming very soon. Please contact us to place your order';
+            } else {
+                this.error = '';
+            }
+        },
+
         validateAndNext() {
             this.error = '';
+            if (this.delivery === 'Livraison Express 3.5km') {
+                this.error = 'For now, we only offer takeaway. Home delivery is not available at the moment, but will be coming very soon. Please contact us to place your order';
+                return;
+            }
             if (!this.email || !this.mobile || !this.address) {
                 this.error = 'Please fill in all your details.';
                 return;

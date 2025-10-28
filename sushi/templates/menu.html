@@ -18,6 +18,22 @@
         }
     }
 
+    .highlight {
+        
+        animation: highlight-animation 2s ease-out;
+    }
+
+    @keyframes highlight-animation {
+        0% {
+            background-color: #fefcbf; /* yellow-100 */
+            box-shadow: 0 0 15px rgba(250, 204, 21, 0.7);
+        }
+        100% {
+            background-color: #fff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+        }
+    }
+
     h1,
     h2 {
         font-family: 'Arial', sans-serif;
@@ -53,6 +69,7 @@
         flex-direction: column;
         align-items: center;
         transition: box-shadow 0.2s;
+        scroll-margin-top: 100px;
     }
 
     .menu-card:hover {
@@ -328,7 +345,6 @@
     </div>
 </div>
 
-<!-- Add JavaScript: category dropdown toggle + search results fetching -->
 <script>
 /* filepath: c:\Users\Admin\Music\sushi hotol\sarans\hotal\sushi_project\sushi\templates\menu.html - added JS */
 document.addEventListener('DOMContentLoaded', function () {
@@ -388,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             timer = setTimeout(() => {
-                fetch(`/search_menu_items_api?q=${encodeURIComponent(q)}`)
+                fetch(`/api/search_menu_items/?q=${encodeURIComponent(q)}`)
                     .then(res => res.json())
                     .then(data => {
                         if (!Array.isArray(data) || data.length === 0) {
@@ -414,7 +430,14 @@ document.addEventListener('DOMContentLoaded', function () {
                             el.addEventListener('click', function (e) {
                                 const anchor = this.getAttribute('data-anchor').replace('#','');
                                 const target = document.getElementById(anchor);
-                                if (target) target.scrollIntoView({behavior:'smooth', block:'start'});
+                                if (target) {
+                                    target.scrollIntoView({behavior:'smooth', block:'start'});
+                                    // Highlight the card
+                                    target.classList.add('highlight');
+                                    setTimeout(() => {
+                                        target.classList.remove('highlight');
+                                    }, 2000); // Remove highlight after 2 seconds
+                                }
                                 showResults('');
                             });
                         });

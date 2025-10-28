@@ -771,7 +771,7 @@ def search_menu_items_api(request):
 
     results = []
     for item in menu_items:
-        image_url = item['image'].url if item['image'] else None
+        image_url = f"{settings.MEDIA_URL}{item['image']}" if item['image'] else None
         results.append({
             'id': item['id'],
             'name': item['name'],
