@@ -7,39 +7,59 @@
         <thead>
             <tr>
                 <th class="px-4 py-2 border">Item</th>
+                <th class="px-4 py-2 border">Email</th>
                 <th class="px-4 py-2 border">Qty</th>
-                <th class="px-4 py-2 border">Total</th>
+                <th class="px-4 py-2 border">Price</th>
+                <th class="px-4 py-2 border">Total Price</th>
                 <th class="px-4 py-2 border">Status</th>
                 <th class="px-4 py-2 border">Actions</th>
             </tr>
         </thead>
-        <tbody>
-            {% for order in orders %}
-            <tr>
-                <td class="px-4 py-2 border">
-                    {{ order.item }}
-                </td>
-                <td class="px-4 py-2 border">{{ order.qty }}</td>
-                <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
-                <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
-                    {{ order.status }}
-                </td>
-                <td class="px-4 py-2 border">
-                    <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
-                        {% csrf_token %}
-                        <input type="hidden" name="reason" class="cancel-reason-input">
-                        <button type="submit" name="action" value="accept" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Accept Order</button>
-                        <button type="submit" name="action" value="making" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Making Order</button>
-                        <button type="submit" name="action" value="collect" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Collect the Order</button>
-                        <button type="submit" name="action" value="delivered" class="bg-purple-500 text-white px-2 py-1 rounded text-xs" onclick="return confirm('Are you sure you want to deliver this order?');">Deliver Order</button>
-                        <button type="submit" name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs cancel-btn">Cancel Order</button>
-                    </form>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="text-center py-4">No orders found.</td>
-            </tr>
+        {% regroup orders by email as order_groups %}
+        <tbody id="order-food-tbody">
+            {% for group in order_groups %}
+                <!-- Group header: shows email, item count and "One-time Order" label -->
+                <tr class="bg-gray-100">
+                    <td class="px-4 py-2 border font-semibold" colspan="7">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="mr-2">Email:</span>
+                                <strong>{{ group.grouper }}</strong>
+                                <span class="mx-2 text-sm text-gray-600">({{ group.list|length }} item{% if group.list|length > 1 %}s{% endif %})</span>
+                            </div>
+                            <div class="text-sm text-gray-600">One-time Order</div>
+                        </div>
+                    </td>
+                </tr>
+                <!-- Orders for this email -->
+                {% for order in group.list %}
+                <tr>
+                    <td class="px-4 py-2 border" x-text="">{{ order.item }}</td>
+                    <!-- leave email cell blank to avoid repetition -->
+                    <td class="px-4 py-2 border text-gray-500">-</td>
+                    <td class="px-4 py-2 border">{{ order.qty }}</td>
+                    <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
+                    <td class="px-4 py-2 border">{{ order.total_price|floatformat:2 }} CHF</td>
+                    <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
+                        {% if order.status == 'Cancelled' %}
+                            Cancel Order
+                        {% else %}
+                            {{ order.status }}
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-2 border">
+                        <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
+                            {% csrf_token %}
+                            <input type="hidden" name="reason" class="cancel-reason-input">
+                            <button type="submit" name="action" value="accept" class="bg-green-500 text-white px-2 py-1 rounded text-xs">Accept Order</button>
+                            <button type="submit" name="action" value="making" class="bg-yellow-500 text-white px-2 py-1 rounded text-xs">Making Order</button>
+                            <button type="submit" name="action" value="collect" class="bg-blue-500 text-white px-2 py-1 rounded text-xs">Collect the Order</button>
+                            <button type="submit" name="action" value="delivered" class="bg-purple-500 text-white px-2 py-1 rounded text-xs" onclick="return confirm('Are you sure you want to deliver this order?');">Deliver Order</button>
+                            <button type="submit" name="action" value="cancel" class="bg-red-500 text-white px-2 py-1 rounded text-xs cancel-btn">Cancel Order</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
             {% endfor %}
         </tbody>
     </table>
@@ -58,7 +78,7 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+function initCancelModal() {
     const modal = document.getElementById('cancel-modal');
     const modalConfirmBtn = document.getElementById('modal-confirm-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -66,39 +86,104 @@ document.addEventListener('DOMContentLoaded', function() {
     const cancelButtons = document.querySelectorAll('.cancel-btn');
     let activeForm = null;
 
-    cancelButtons.forEach(button => {
-        // Remove existing onclick attribute to avoid conflict
+    // detach previous listeners safely by cloning modal (simple reset)
+    const modalClone = modal.cloneNode(true);
+    modal.parentNode.replaceChild(modalClone, modal);
+
+    // re-select elements from the fresh DOM
+    const freshModal = document.getElementById('cancel-modal');
+    const freshConfirm = document.getElementById('modal-confirm-btn');
+    const freshCancel = document.getElementById('modal-cancel-btn');
+    const freshTextarea = document.getElementById('cancel-reason-textarea');
+
+    document.querySelectorAll('.cancel-btn').forEach(button => {
         button.removeAttribute('onclick');
-        
         button.addEventListener('click', function(event) {
-            event.preventDefault(); // Stop the form from submitting immediately
-            activeForm = button.closest('form'); // Get the form associated with the clicked button
-            modal.style.display = 'flex'; // Show the modal
+            event.preventDefault();
+            activeForm = button.closest('form');
+            freshModal.style.display = 'flex';
         });
     });
 
-    modalCancelBtn.addEventListener('click', function() {
-        modal.style.display = 'none'; // Hide the modal
-        reasonTextarea.value = ''; // Clear textarea
+    freshCancel.addEventListener('click', function() {
+        freshModal.style.display = 'none';
+        freshTextarea.value = '';
     });
 
-    modalConfirmBtn.addEventListener('click', function() {
+    freshConfirm.addEventListener('click', function() {
         if (activeForm) {
             const reasonInput = activeForm.querySelector('.cancel-reason-input');
             if (reasonInput) {
-                reasonInput.value = reasonTextarea.value;
+                reasonInput.value = freshTextarea.value;
             }
+            // Ensure the form submits its action value when submitted programmatically:
+            // create or set a hidden input named "action" with value "cancel"
+            let actionHidden = activeForm.querySelector('input[name="action"][type="hidden"]');
+            if (!actionHidden) {
+                actionHidden = document.createElement('input');
+                actionHidden.type = 'hidden';
+                actionHidden.name = 'action';
+                activeForm.appendChild(actionHidden);
+            }
+            actionHidden.value = 'cancel';
+
             activeForm.submit();
         }
     });
 
-    // Also hide modal if clicking on the background
-    modal.addEventListener('click', function(event) {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-            reasonTextarea.value = '';
+    freshModal.addEventListener('click', function(event) {
+        if (event.target === freshModal) {
+            freshModal.style.display = 'none';
+            freshTextarea.value = '';
         }
     });
+}
+
+// Replace tbody by fetching current page and extracting tbody#order-food-tbody
+async function refreshTbody(tbodyId) {
+    try {
+        const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+        if (!res.ok) return;
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTbody = doc.querySelector('#' + tbodyId);
+        if (newTbody) {
+            const current = document.querySelector('#' + tbodyId);
+            if (current && current.innerHTML !== newTbody.innerHTML) {
+                current.innerHTML = newTbody.innerHTML;
+                // re-initialize behaviour for dynamic parts (modal buttons etc.)
+                initCancelModal();
+            }
+        }
+    } catch (e) {
+        console.error('refreshTbody error:', e);
+    }
+}
+
+function startRealtimeOrders() {
+    const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/orders/';
+    let socket;
+    try {
+        socket = new WebSocket(wsUrl);
+    } catch (e) {
+        socket = null;
+    }
+    if (socket) {
+        socket.addEventListener('message', () => refreshTbody('order-food-tbody'));
+        socket.addEventListener('close', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
+        socket.addEventListener('error', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
+        // occasional full sync
+        setInterval(() => refreshTbody('order-food-tbody'), 15000);
+    } else {
+        setInterval(() => refreshTbody('order-food-tbody'), 5000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initCancelModal();
+    startRealtimeOrders();
 });
 </script>
 {% endblock %}

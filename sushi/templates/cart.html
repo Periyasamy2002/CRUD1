@@ -10,8 +10,11 @@
         <div class="max-w-3xl mx-auto mb-8">
             <div class="flex items-center justify-center">
                 <div class="flex items-center" :class="step >= 1 ? 'text-red-600' : 'text-gray-500'">
-                    <div class="rounded-full h-8 w-8 flex items-center justify-center text-white" :class="step >= 1 ? 'bg-red-600' : 'bg-gray-400'">1</div>
-                    <div class="ml-2 font-semibold">Review Cart</div>
+                    <!-- make step label clickable to go back to review -->
+                    <button type="button" @click="goToStep(1)" class="flex items-center focus:outline-none">
+                        <div class="rounded-full h-8 w-8 flex items-center justify-center text-white" :class="step >= 1 ? 'bg-red-600' : 'bg-gray-400'">1</div>
+                        <div class="ml-2 font-semibold">Review Cart</div>
+                    </button>
                 </div>
                 <div class="flex-auto border-t-2 mx-4" :class="step > 1 ? 'border-red-600' : 'border-gray-300'"></div>
                 <div class="flex items-center" :class="step >= 2 ? 'text-red-600' : 'text-gray-500'">
@@ -85,7 +88,7 @@
                     </div>
                 </div>
                 <div class="flex justify-between mt-8">
-                    <a href="{% url 'menu' %}" class="text-red-600 font-semibold hover:underline">‹ Continue Shopping</a>
+                    <a href="{% url 'menu' %}" class="text-red-600 font-semibold hover:underline">‹ Continue order</a>
                     <button @click="nextStep()" :disabled="cart.length === 0" class="bg-red-600 text-white px-6 py-2 rounded-lg shadow hover:bg-red-700 disabled:bg-gray-400">Next</button>
                 </div>
             </div>
@@ -198,7 +201,11 @@
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Successful!</h2>
                 <p class="text-gray-600">Thank you for your order <!-- . A confirmation has been sent to <strong x-text="email"></strong>. --></p>
                
-                <a href="{% url 'menu' %}" class="mt-8 inline-block bg-red-600 text-white px-6 py-2 rounded-lg shadow hover:bg-red-700">Back to Menu</a>
+                <!-- allow user to review cart (which is cleared) or go back to menu -->
+                <div class="mt-8 flex items-center justify-center gap-4">
+                    <button @click="goToStep(1)" class="inline-block bg-yellow-500 text-white px-6 py-2 rounded-lg shadow hover:bg-yellow-600">Review Cart</button>
+                    <a href="{% url 'menu' %}" class="inline-block bg-red-600 text-white px-6 py-2 rounded-lg shadow hover:bg-red-700">Back to Menu</a>
+                </div>
             </div>
         </div>
     </div>
@@ -226,6 +233,24 @@ function cartPage() {
             });
             // If cart is empty, and we are on step 1, maybe redirect to menu? Or just show empty message.
             // For now, showing empty message is fine.
+        },
+
+        // navigate to a specific step, clear errors
+        goToStep(n) {
+            this.error = '';
+            this.step = n;
+        },
+
+        // reset form details to defaults (keeps email if you prefer; here we reset all except email)
+        clearDetails() {
+            this.mobile = '';
+            this.address = '';
+            this.delivery = 'Click & Collect';
+            this.orderType = 'now';
+            this.orderDate = '';
+            this.orderTime = '';
+            this.error = '';
+            this.loading = false;
         },
 
         nextStep() {
@@ -321,9 +346,11 @@ function cartPage() {
             .then(data => {
                 this.loading = false;
                 if (data.success) {
+                    // clear component cart then persist empty global cart
+                    this.cart = [];
+                    this.updateGlobalCart(); // writes empty cart to window.globalCart and localStorage
+                    this.clearDetails();
                     this.step = 4;
-                    window.globalCart = [];
-                    this.updateGlobalCart();
                 } else {
                     this.error = data.error || 'An unknown error occurred.';
                     this.step = 3; // Stay on summary page to show error

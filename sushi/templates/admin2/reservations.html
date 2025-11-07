@@ -31,7 +31,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send Email</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody id="reservations-tbody" class="bg-white divide-y divide-gray-200">
                 {% for reservation in reservations %}
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ forloop.counter }}</td>
@@ -96,6 +96,47 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dateFilter.addEventListener('change', applyFilters);
     statusFilter.addEventListener('change', applyFilters);
+});
+
+// generic tbody refresher
+async function refreshTbodyById(tbodyId) {
+    try {
+        const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+        if (!res.ok) return;
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTbody = doc.querySelector('#' + tbodyId);
+        if (newTbody) {
+            const current = document.querySelector('#' + tbodyId);
+            if (current && current.innerHTML !== newTbody.innerHTML) {
+                current.innerHTML = newTbody.innerHTML;
+            }
+        }
+    } catch (e) {
+        console.error('refreshTbodyById error:', e);
+    }
+}
+
+function startRealtimeReservations() {
+    const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/reservations/';
+    let socket;
+    try { socket = new WebSocket(wsUrl); } catch (e) { socket = null; }
+
+    if (socket) {
+        socket.addEventListener('message', () => refreshTbodyById('reservations-tbody'));
+        socket.addEventListener('close', () => setInterval(() => refreshTbodyById('reservations-tbody'), 5000));
+        socket.addEventListener('error', () => setInterval(() => refreshTbodyById('reservations-tbody'), 5000));
+        setInterval(() => refreshTbodyById('reservations-tbody'), 15000);
+    } else {
+        setInterval(() => refreshTbodyById('reservations-tbody'), 5000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // ...existing initialization...
+    startRealtimeReservations();
 });
 </script>
 {% endblock %}

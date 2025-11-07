@@ -98,6 +98,10 @@ class Order(models.Model):
     def __str__(self):
         return f"{self.item} x{self.qty} ({self.email})"
 
+    @property
+    def total_price(self):
+        return self.price * self.qty
+
     # Added helper to return a simple dict for templates / debugging
     def to_dict(self):
         return {
@@ -105,6 +109,7 @@ class Order(models.Model):
             "item": self.item,
             "price": str(self.price),
             "qty": self.qty,
+            "total_price": str(self.total_price),
             "order_type": self.order_type,
             "order_date": self.order_date.isoformat() if self.order_date else None,
             "order_time": self.order_time.isoformat() if self.order_time else None,

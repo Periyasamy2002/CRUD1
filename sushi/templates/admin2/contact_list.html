@@ -16,7 +16,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody id="contacts-tbody" class="bg-white divide-y divide-gray-200">
                 {% for contact in contacts %}
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -46,4 +46,46 @@
         </table>
     </div>
 </div>
+
+<script>
+// realtime refresh for contacts
+async function refreshContactsTbody() {
+    try {
+        const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+        if (!res.ok) return;
+        const html = await res.text();
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTbody = doc.querySelector('#contacts-tbody');
+        if (newTbody) {
+            const current = document.querySelector('#contacts-tbody');
+            if (current && current.innerHTML !== newTbody.innerHTML) {
+                current.innerHTML = newTbody.innerHTML;
+            }
+        }
+    } catch (e) {
+        console.error('refreshContactsTbody error:', e);
+    }
+}
+
+function startRealtimeContacts() {
+    const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+    const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/contacts/';
+    let socket;
+    try { socket = new WebSocket(wsUrl); } catch (e) { socket = null; }
+
+    if (socket) {
+        socket.addEventListener('message', () => refreshContactsTbody());
+        socket.addEventListener('close', () => setInterval(refreshContactsTbody, 5000));
+        socket.addEventListener('error', () => setInterval(refreshContactsTbody, 5000));
+        setInterval(refreshContactsTbody, 15000);
+    } else {
+        setInterval(refreshContactsTbody, 5000);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    startRealtimeContacts();
+});
+</script>
 {% endblock %}

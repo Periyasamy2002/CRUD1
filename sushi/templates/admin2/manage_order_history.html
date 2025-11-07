@@ -146,6 +146,7 @@
                     <th>Item</th>
                     <th>Quantity</th>
                     <th>Price</th>
+                    <th>Total Price</th>
                     <th>Order Type</th>
                     <th>Order Date</th>
                     <th>Order Time</th>
@@ -158,13 +159,14 @@
                     <th>Reason for Cancellation</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="orders-tbody">
                 {% for order in orders %}
                 <tr>
                     <td>{{ order.id }}</td>
                     <td>{{ order.item }}</td>
                     <td>{{ order.qty }}</td>
                     <td>{{ order.price }}</td>
+                    <td>{{ order.total_price }}</td>
                     <td>{{ order.order_type }}</td>
                     <td>{{ order.order_date|default_if_none:"" }}</td>
                     <td>{{ order.order_time|default_if_none:"" }}</td>
@@ -190,10 +192,13 @@
     <script>
         let currentPage = 1;
         const table = document.querySelector('table');
-        const rows = Array.from(table.getElementsByTagName('tr')).slice(1); // Skip header row
+        let rows = Array.from(table.querySelectorAll('tbody#orders-tbody tr'));
+
+        function updateRows() {
+            rows = Array.from(table.querySelectorAll('tbody#orders-tbody tr'));
+        }
 
         function changeEntries() {
-            const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
             currentPage = 1;
             displayTableRows();
         }
@@ -230,7 +235,7 @@
         function updatePagination() {
             const entriesPerPage = parseInt(document.getElementById('entriesPerPage').value);
             const visibleRows = rows.filter(row => row.style.display !== 'none');
-            const pageCount = Math.ceil(visibleRows.length / entriesPerPage);
+            const pageCount = Math.max(1, Math.ceil(visibleRows.length / entriesPerPage));
             
             const paginationDiv = document.getElementById('pagination');
             paginationDiv.innerHTML = '';
@@ -238,7 +243,7 @@
             for (let i = 1; i <= pageCount; i++) {
                 const button = document.createElement('button');
                 button.textContent = i;
-                button.classList.toggle('active', i === currentPage);
+                if (i === currentPage) button.classList.add('active');
                 button.onclick = () => {
                     currentPage = i;
                     displayTableRows();
@@ -247,8 +252,79 @@
             }
         }
 
-        // Initialize the table
-        displayTableRows();
+        // Replace the orders tbody by fetching the server-rendered page and extracting the tbody.
+        async function refreshOrdersHTML() {
+            try {
+                const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                if (!res.ok) return;
+                const html = await res.text();
+                // parse returned HTML and extract tbody with id orders-tbody
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newTbody = doc.querySelector('tbody#orders-tbody');
+                if (newTbody) {
+                    const currentTbody = document.querySelector('tbody#orders-tbody');
+                    if (currentTbody && currentTbody.innerHTML !== newTbody.innerHTML) {
+                        currentTbody.innerHTML = newTbody.innerHTML;
+                        // re-run row collection and re-apply filters/pagination
+                        updateRows();
+                        // preserve current filter and entries selection
+                        filterTable();
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to refresh orders:', e);
+            }
+        }
+
+        // Try WebSocket first for immediate updates, fallback to polling every 5s.
+        function startRealtimeUpdates() {
+            const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+            const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/orders/';
+            let socket;
+            try {
+                socket = new WebSocket(wsUrl);
+            } catch (e) {
+                socket = null;
+            }
+
+            if (socket) {
+                socket.addEventListener('open', () => {
+                    console.log('Realtime orders websocket connected:', wsUrl);
+                });
+                socket.addEventListener('message', (event) => {
+                    // server may send minimal message; refresh entire orders tbody
+                    refreshOrdersHTML();
+                });
+                socket.addEventListener('close', () => {
+                    console.warn('Realtime websocket closed, falling back to polling.');
+                    setInterval(refreshOrdersHTML, 5000);
+                });
+                socket.addEventListener('error', () => {
+                    console.warn('Realtime websocket error, falling back to polling.');
+                    setInterval(refreshOrdersHTML, 5000);
+                });
+                // also periodically ensure we are in sync
+                setInterval(refreshOrdersHTML, 15000);
+            } else {
+                // No websocket support -> polling
+                setInterval(refreshOrdersHTML, 5000);
+            }
+        }
+
+        // initialise controls and live updates on DOM load
+        document.addEventListener('DOMContentLoaded', function() {
+            // initialize rows and UI
+            updateRows();
+            displayTableRows();
+
+            // wire up filters & entries (keep previous behavior)
+            const date = document.getElementById('tableFilter');
+            // already using onkeyup inline; ensure event binding is fine
+
+            // start realtime updates
+            startRealtimeUpdates();
+        });
     </script>
 </body>
 {% endblock %}
