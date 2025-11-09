@@ -1,0 +1,27 @@
+{% extends "admin2/base2.html" %}
+{% block title %}View Reservation - Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Reservation Details</h1>
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="p-6">
+            <p><strong>Name:</strong> {{ reservation.name }}</p>
+            <p><strong>Email:</strong> {{ reservation.email }}</p>
+            <p><strong>Phone:</strong> {{ reservation.phone }}</p>
+            <p><strong>Date:</strong> {{ reservation.date }}</p>
+            <p><strong>Time:</strong> {{ reservation.time }}</p>
+            <p><strong>Guests:</strong> {{ reservation.guests }}</p>
+            <p><strong>Status:</strong> {{ reservation.status }}</p>
+            <p><strong>Special Requests:</strong> {{ reservation.special_requests }}</p>
+        </div>
+        <div class="bg-gray-50 px-6 py-4">
+            <a href="{% url 'admin_reservations' %}" class="text-indigo-600 hover:text-indigo-900">Back to Reservations</a>
+            <a href="mailto:{{ reservation.email }}?subject=Your%20Reservation%20Details&body=Dear%20{{ reservation.name|urlencode}},%0A%0AYour%20reservation%20for%20{{ reservation.date }}%20at%20{{ reservation.time }}%20for%20{{ reservation.guests }}%20guests%20is%20confirmed.%0A%0AThank%20you,%0AThe%20Sushi%20Restaurant"
+                target="_blank" class="text-green-600 hover:text-green-900 ml-4">
+                Send Mail
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

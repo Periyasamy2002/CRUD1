@@ -87,6 +87,23 @@
     }
     /* ...existing code... */
   </style>
+  <section class="relative bg-gradient-to-r from-red-50 to-white py-12 mb-8">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row items-center">
+            <div class="w-full md:w-1/2 mb-6 md:mb-0 flex flex-col items-center md:items-start text-center md:text-left">
+                <h1 class="text-4xl font-extrabold text-red-700 mb-4">Welcome to SUSHI NARUTO MOMOS AND MORE</h1>
+                <p class="text-lg text-gray-700 mb-4">Authentic Japanese cuisine, fresh sushi, and Asian specialties in
+                    the heart of Allschwil. Dine in, reserve a table, or order for takeaway!</p>
+                <a href="{% url 'reservation' %}"
+                    class="inline-block bg-red-600 text-white px-6 py-2 rounded shadow hover:bg-red-700 transition">Reserve
+                    a Table</a>
+            </div>
+            <div class="w-full md:w-1/2 flex justify-center items-center reste">
+                <img src="{% static 'images/restaurant_hero.jpg' %}" alt="SUSHI NARUTO MOMOS AND MORE Restaurant"
+                    class="restaurant-hero-img rounded-lg shadow-lg w-full max-w-xs sm:max-w-md fade-in mx-auto">
+            </div>
+        </div>
+    </section>
+
 
   <!-- 📍 Contact Details & Opening Hours -->
   <div class="container">

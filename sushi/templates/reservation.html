@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Table Reservation –  SUSHI NARUTO MOMOS AND MORE{% endblock %}
+{% block title %}Table Reservation – SUSHI NARUTO MOMOS AND MORE{% endblock %}
 
 {% block content %}
 <style>
@@ -60,23 +60,43 @@
         background-color: #e04343;
     }
 </style>
+<section class="relative bg-gradient-to-r from-red-50 to-white py-12 mb-8">
+    <div class="container mx-auto px-4 flex flex-col md:flex-row items-center">
+        <div class="w-full md:w-1/2 mb-6 md:mb-0 flex flex-col items-center md:items-start text-center md:text-left">
+            <h1 class="text-4xl font-extrabold text-red-700 mb-4">Welcome to SUSHI NARUTO MOMOS AND MORE</h1>
+            <p class="text-lg text-gray-700 mb-4">Authentic Japanese cuisine, fresh sushi, and Asian specialties in
+                the heart of Allschwil. Dine in, reserve a table, or order for takeaway!</p>
+            <a href="{% url 'reservation' %}"
+                class="inline-block bg-red-600 text-white px-6 py-2 rounded shadow hover:bg-red-700 transition">Reserve
+                a Table</a>
+        </div>
+        <div class="w-full md:w-1/2 flex justify-center items-center reste">
+            <img src="{% static 'images/restaurant_hero.jpg' %}" alt="SUSHI NARUTO MOMOS AND MORE Restaurant"
+                class="restaurant-hero-img rounded-lg shadow-lg w-full max-w-xs sm:max-w-md fade-in mx-auto">
+        </div>
+    </div>
+</section>
 
 <!-- Hero Section -->
 <div class="fade-in flex flex-col md:flex-row items-center mb-10 px-4">
-    <img src="{% static 'images/reservation_hero.jpg' %}" alt="Reserve Table  SUSHI NARUTO MOMOS AND MORE" class="rounded-lg shadow-lg w-full max-w-xs md:max-w-sm mr-0 md:mr-6 mb-4 md:mb-0">
+    <img src="{% static 'images/reservation_hero.jpg' %}" alt="Reserve Table  SUSHI NARUTO MOMOS AND MORE"
+        class="rounded-lg shadow-lg w-full max-w-xs md:max-w-sm mr-0 md:mr-6 mb-4 md:mb-0">
     <div>
         <h1 class="text-3xl font-bold text-red-700 mb-2">Reserve a Table</h1>
-        <p class="text-lg text-gray-700">Call us at <strong>+41 61 506 41 23</strong> or fill out the form below to book your table. We look forward to welcoming you!</p>
+        <p class="text-lg text-gray-700">Call us at <strong>+41 61 506 41 23</strong> or fill out the form below to book
+            your table. We look forward to welcoming you!</p>
     </div>
 </div>
 
 <!-- Additional Text -->
 <div class="fade-in text-center px-4 md:px-20 mb-8">
     <p class="text-gray-700 text-lg">
-        Whether you're planning a romantic evening, a family gathering, or a business lunch, reserving in advance helps us serve you better. Choose your preferred time and date, and we’ll take care of the rest.
+        Whether you're planning a romantic evening, a family gathering, or a business lunch, reserving in advance helps
+        us serve you better. Choose your preferred time and date, and we’ll take care of the rest.
     </p>
     <p class="text-gray-600 mt-4">
-        Our team will send you a confirmation email shortly after your reservation is submitted. Please note that reservations are held for 15 minutes after the selected time.
+        Our team will send you a confirmation email shortly after your reservation is submitted. Please note that
+        reservations are held for 15 minutes after the selected time.
     </p>
 </div>
 
@@ -85,7 +105,8 @@
 <div class="fade-in grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 px-4 md:px-20 mb-12">
     <!-- Card 1 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/int2.jpg' %}" alt="Private Dining" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/int2.jpg' %}" alt="Private Dining"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Private Dining</h3>
             <p class="text-gray-600 text-sm mt-2">Reserve a quiet, elegant space for your special event.</p>
@@ -94,7 +115,8 @@
 
     <!-- Card 2 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/int4.jpg' %}" alt="Family Friendly" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/int4.jpg' %}" alt="Family Friendly"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Family Friendly</h3>
             <p class="text-gray-600 text-sm mt-2">We have spacious seating and options for all ages.</p>
@@ -103,7 +125,8 @@
 
     <!-- Card 3 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Business Lunch" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Business Lunch"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Business Lunch</h3>
             <p class="text-gray-600 text-sm mt-2">Perfect setting for professional meetings and meals.</p>
@@ -112,7 +135,8 @@
 
     <!-- Card 4 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Romantic Evenings" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Romantic Evenings"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Romantic Evenings</h3>
             <p class="text-gray-600 text-sm mt-2">Candle-lit dinners with a serene and cozy ambiance.</p>
@@ -121,7 +145,8 @@
 
     <!-- Card 5 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Chef Specials" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/reservation_hero.jpg' %}" alt="Chef Specials"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Chef’s Specials</h3>
             <p class="text-gray-600 text-sm mt-2">Reserve and get a taste of our limited-time dishes.</p>
@@ -130,7 +155,8 @@
 
     <!-- Card 6 -->
     <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Outdoor Seating" class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
+        <img src="{% static 'images/restrant_hero.jpg' %}" alt="Outdoor Seating"
+            class="w-full h-48 object-cover hover:scale-105 transition-transform duration-300">
         <div class="p-4">
             <h3 class="text-xl font-semibold text-red-700">Outdoor Seating</h3>
             <p class="text-gray-600 text-sm mt-2">Enjoy sushi in the open air with our patio seating.</p>
@@ -140,9 +166,9 @@
 
 <!-- Confirmation Message -->
 {% if reservation_success %}
-    <div class="fade-in bg-green-100 border-l-4 border-green-400 p-4 mb-6 text-green-800 text-center max-w-xl mx-auto">
-        Thank you for your reservation! We will confirm by email soon.
-    </div>
+<div class="fade-in bg-green-100 border-l-4 border-green-400 p-4 mb-6 text-green-800 text-center max-w-xl mx-auto">
+    Thank you for your reservation! We will confirm by email soon.
+</div>
 {% endif %}
 
 <!-- Reservation Form -->
@@ -175,10 +201,10 @@
 
 
 <script>
-  // Get today's date in YYYY-MM-DD format
-  const today = new Date().toISOString().split('T')[0];
-  // Set the min attribute to today's date
-  document.getElementById("date").setAttribute("min", today);
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    // Set the min attribute to today's date
+    document.getElementById("date").setAttribute("min", today);
 </script>
 
 {% endblock %}

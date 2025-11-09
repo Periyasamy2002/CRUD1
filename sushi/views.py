@@ -884,6 +884,27 @@ def admin_contact_list(request):
     })
 
 @login_required
+def admin_contact_detail(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    contact = get_object_or_404(Contact, pk=pk)
+    return render(request, 'admin2/contact_detail.html', {
+        'contact': contact,
+        'active_tab': 'contacts'
+    })
+
+@login_required
+def admin_contact_delete(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    contact = get_object_or_404(Contact, pk=pk)
+    if request.method == 'POST':
+        contact.delete()
+        messages.success(request, 'Contact request deleted successfully.')
+        return redirect('admin_contact_list')
+    return render(request, 'admin2/contact_confirm_delete.html', {'contact': contact})
+
+@login_required
 def admin_reservations(request):
     if not request.user.is_staff:
         return redirect('admin_login')
@@ -928,18 +949,47 @@ def update_reservation_status(request, pk):
     return redirect('admin_reservations')
 
 @login_required
-def send_confirmation_email(request, pk):
+def send_confirmation_email(request, pk, mail_type):
     if not request.user.is_staff:
         return redirect('admin_login')
         
     reservation = get_object_or_404(TableReservation, pk=pk)
     
-    subject = f'Your table reservation for {reservation.date} is confirmed'
-    message = f'Dear {reservation.name},\n\nYour table reservation for {reservation.date} at {reservation.time} has been confirmed.'
+    if mail_type == 'confirmed':
+        subject = f'Your table reservation for {reservation.date} is confirmed'
+        message = f'Dear {reservation.name},\n\nYour table reservation for {reservation.date} at {reservation.time} has been confirmed.'
+    elif mail_type == 'cancelled':
+        subject = f'Your table reservation for {reservation.date} is cancelled'
+        message = f'Dear {reservation.name},\n\nWe regret to inform you that your table reservation for {reservation.date} at {reservation.time} has been cancelled.'
+    else:
+        messages.error(request, 'Invalid email type.')
+        return redirect('admin_reservations')
+
     try:
         send_mail(subject, message, 'saranvignesh55@gmail.com', [reservation.email])
-        messages.success(request, f'Confirmation email sent to {reservation.email}.')
+        messages.success(request, f'{mail_type.capitalize()} email sent to {reservation.email}.')
     except Exception as e:
-        messages.error(request, f'Failed to send confirmation email: {str(e)}')
+        messages.error(request, f'Failed to send {mail_type} email: {str(e)}')
             
     return redirect('admin_reservations')
+
+@login_required
+def view_reservation(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    reservation = get_object_or_404(TableReservation, pk=pk)
+    return render(request, 'admin2/reservation_view.html', {
+        'reservation': reservation,
+        'active_tab': 'reservations'
+    })
+
+@login_required
+def delete_reservation(request, pk):
+    if not request.user.is_staff:
+        return redirect('admin_login')
+    reservation = get_object_or_404(TableReservation, pk=pk)
+    if request.method == 'POST':
+        reservation.delete()
+        messages.success(request, 'Reservation deleted successfully.')
+        return redirect('admin_reservations')
+    return render(request, 'admin2/reservation_confirm_delete.html', {'reservation': reservation})

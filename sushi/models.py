@@ -1,6 +1,8 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+import calendar
 
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, username, password=None, **extra_fields):
@@ -119,6 +121,63 @@ class Order(models.Model):
             "delivery": self.delivery,
             "created_at": self.created_at.isoformat(),
             "status": self.status,
+        }
+
+    @classmethod
+    def dashboard_summary(cls, months=6):
+        """
+        Return a dict with totals, recent orders and a small monthly revenue series.
+        Useful for views or lightweight API endpoints.
+        """
+        now = timezone.now()
+        total_orders = cls.objects.count()
+        # compute revenue as sum(price * qty)
+        revenue_expr = ExpressionWrapper(F('price') * F('qty'), output_field=DecimalField())
+        agg = cls.objects.aggregate(total_revenue=Sum(revenue_expr))
+        total_revenue = float(agg.get('total_revenue') or 0.0)
+
+        pending = cls.objects.filter(status__iexact='pending').count()
+        delivered = cls.objects.filter(status__iexact='delivered').count()
+
+        recent_qs = cls.objects.order_by('-created_at')[:10]
+        recent_orders = []
+        for o in recent_qs:
+            recent_orders.append({
+                "id": o.id,
+                "customer_name": (o.email.split('@')[0] if o.email else "unknown"),
+                "total_amount": float(o.total_price),
+                "status": o.status.title(),
+                "created_at": o.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            })
+
+        # build months list (chronological) for the last `months` months
+        year = now.year
+        month = now.month
+        months_list = []
+        for i in range(months):
+            months_list.append((year, month))
+            month -= 1
+            if month == 0:
+                month = 12
+                year -= 1
+        months_list.reverse()
+
+        labels = []
+        values = []
+        for y, m in months_list:
+            labels.append(calendar.month_abbr[m])
+            total = cls.objects.filter(created_at__year=y, created_at__month=m).aggregate(
+                month_total=Sum(ExpressionWrapper(F('price') * F('qty'), output_field=DecimalField()))
+            )['month_total'] or 0
+            values.append(float(total))
+
+        return {
+            "total_orders": total_orders,
+            "total_revenue": total_revenue,
+            "pending_orders": pending,
+            "delivered_orders": delivered,
+            "recent_orders": recent_orders,
+            "chart_data": {"labels": labels, "values": values}
         }
 
 # ---------------- Contact ----------------

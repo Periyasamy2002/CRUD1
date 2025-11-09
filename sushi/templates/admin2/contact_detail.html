@@ -1,0 +1,35 @@
+{% extends "admin2/base2.html" %}
+{% block title %}Contact Detail - Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Contact Request Details</h1>
+    
+    <div class="bg-white shadow-md rounded-lg p-6">
+        <div class="mb-4">
+            <p class="text-gray-600 text-sm"><strong>Date:</strong> {{ contact.created_at|date:"Y-m-d H:i" }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="text-gray-600 text-sm"><strong>Name:</strong> {{ contact.name }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="text-gray-600 text-sm"><strong>Email:</strong> {{ contact.email }}</p>
+        </div>
+        <div class="mb-4">
+            <p class="text-gray-600 text-sm"><strong>Message:</strong></p>
+            <p class="text-gray-800">{{ contact.message }}</p>
+        </div>
+        <div class="mb-6">
+            <p class="text-gray-600 text-sm"><strong>Status:</strong> {{ contact.status }}</p>
+        </div>
+        
+        <div class="flex items-center gap-4 mt-6">
+            <a href="{% url 'admin_contact_list' %}" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Back to List</a>
+            <a href="mailto:{{ contact.email }}?subject=Regarding%20your%20contact%20request&body=Dear%20{{ contact.name|urlencode}},%0A%0AThank%20you%20for%20contacting%20us.%20You%20wrote:%0A%0A{{ contact.message|urlencode }}%0A%0AWe%20will%20get%20back%20to%20you%20shortly.%0A%0AThank%20you,%0AThe%20Sushi%20Restaurant"
+                target="_blank" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                Send Mail
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

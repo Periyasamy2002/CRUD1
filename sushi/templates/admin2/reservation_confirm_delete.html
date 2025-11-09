@@ -1,0 +1,20 @@
+{% extends "admin2/base2.html" %}
+{% block title %}Confirm Deletion - Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Confirm Deletion</h1>
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="p-6">
+            <p>Are you sure you want to delete the reservation for <strong>{{ reservation.name }}</strong> on <strong>{{ reservation.date }}</strong> at <strong>{{ reservation.time }}</strong>?</p>
+        </div>
+        <div class="bg-gray-50 px-6 py-4 flex justify-end">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">Delete</button>
+                <a href="{% url 'admin_reservations' %}" class="ml-4 text-gray-600 hover:text-gray-900">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

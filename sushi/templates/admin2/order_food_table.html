@@ -7,7 +7,7 @@
         <thead>
             <tr>
                 <th class="px-4 py-2 border">Item</th>
-                <th class="px-4 py-2 border">Email</th>
+                <th class="px-4 py-2 border">Mobile Number</th>
                 <th class="px-4 py-2 border">Qty</th>
                 <th class="px-4 py-2 border">Price</th>
                 <th class="px-4 py-2 border">Total Price</th>
@@ -35,8 +35,7 @@
                 {% for order in group.list %}
                 <tr>
                     <td class="px-4 py-2 border" x-text="">{{ order.item }}</td>
-                    <!-- leave email cell blank to avoid repetition -->
-                    <td class="px-4 py-2 border text-gray-500">-</td>
+                    <td class="px-4 py-2 border">{{ order.mobile }}</td>
                     <td class="px-4 py-2 border">{{ order.qty }}</td>
                     <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
                     <td class="px-4 py-2 border">{{ order.total_price|floatformat:2 }} CHF</td>

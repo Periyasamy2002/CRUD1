@@ -64,9 +64,13 @@ urlpatterns = [
 
     # ----------- Admin 2 Routes -----------
     path('admin2/contacts/', views.admin_contact_list, name='admin_contact_list'),
+    path('admin2/contacts/<int:pk>/', views.admin_contact_detail, name='admin_contact_detail'),
+    path('admin2/contacts/<int:pk>/delete/', views.admin_contact_delete, name='admin_contact_delete'),
     path('admin2/reservations/', views.admin_reservations, name='admin_reservations'),
     path('admin2/reservations/<int:pk>/update-status/', views.update_reservation_status, name='update_reservation_status'),
-    path('admin2/reservations/<int:pk>/send-email/', views.send_confirmation_email, name='send_confirmation_email'),
+    path('admin2/reservations/<int:pk>/view/', views.view_reservation, name='view_reservation'),
+    path('admin2/reservations/<int:pk>/delete/', views.delete_reservation, name='delete_reservation'),
+    path('admin2/reservations/<int:pk>/send-email/<str:mail_type>/', views.send_confirmation_email, name='send_confirmation_email'),
 ]
 
 if settings.DEBUG:

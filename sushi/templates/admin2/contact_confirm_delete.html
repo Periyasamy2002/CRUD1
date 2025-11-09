@@ -1,0 +1,25 @@
+{% extends "admin2/base2.html" %}
+{% block title %}Confirm Delete Contact Request - Admin{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-6">Delete Contact Request</h1>
+
+    <div class="bg-white shadow-md rounded-lg p-6">
+        <p class="text-lg text-gray-700 mb-4">Are you sure you want to delete the contact request from <strong>{{ contact.name }}</strong> ({{ contact.email }})?</p>
+        <p class="text-gray-600 mb-6">This action cannot be undone.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div class="flex space-x-4">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Confirm Delete
+                </button>
+                <a href="{% url 'admin_contact_list' %}" class="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

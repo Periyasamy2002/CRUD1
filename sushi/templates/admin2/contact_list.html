@@ -4,7 +4,7 @@
 {% block content %}
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-2xl font-bold mb-6">Contact Requests</h1>
-    
+
     <div class="bg-white shadow-md rounded-lg overflow-hidden">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
@@ -14,6 +14,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody id="contacts-tbody" class="bg-white divide-y divide-gray-200">
@@ -34,10 +35,40 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {{ contact.status }}
                     </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium flex items-center gap-2">
+                        <!-- View -->
+                        <a href="{% url 'admin_contact_detail' contact.id %}"
+                           class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg transition transform hover:scale-105">
+                            <i class="fa-solid fa-eye"></i> View
+                        </a>
+
+                        <!-- Mail -->
+                        <a href="https://mail.google.com/mail/?view=cm&to={{ contact.email|urlencode }}&su={{ 'Regarding your contact request'|urlencode }}&body={% filter urlencode %}Dear {{ contact.name }},
+
+Thank you for contacting Sushi Restaurant. We received your message on {{ contact.created_at|date:'F j, Y g:i A' }}:
+
+"{{ contact.message }}"
+
+We will review your message and get back to you shortly.
+
+Best regards,
+Sushi Restaurant{% endfilter %}"
+                           target="_blank" rel="noopener noreferrer"
+                           class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg transition transform hover:scale-105">
+                            <i class="fa-solid fa-paper-plane"></i> Mail
+                        </a>
+
+                        <!-- Delete -->
+                        <a href="{% url 'admin_contact_delete' contact.id %}"
+                           onclick="return confirm('Are you sure you want to delete this contact request?');"
+                           class="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg transition transform hover:scale-105">
+                            <i class="fa-solid fa-trash-can"></i> Delete
+                        </a>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
                         No contact requests found
                     </td>
                 </tr>
@@ -47,45 +78,55 @@
     </div>
 </div>
 
+<!-- Optional Smooth Hover Animation -->
+<style>
+    a.flex.items-center {
+        transition: all 0.2s ease;
+    }
+    a.flex.items-center:hover {
+        transform: scale(1.05);
+    }
+</style>
+
 <script>
-// realtime refresh for contacts
-async function refreshContactsTbody() {
-    try {
-        const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
-        if (!res.ok) return;
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newTbody = doc.querySelector('#contacts-tbody');
-        if (newTbody) {
-            const current = document.querySelector('#contacts-tbody');
-            if (current && current.innerHTML !== newTbody.innerHTML) {
-                current.innerHTML = newTbody.innerHTML;
+    // Realtime refresh for contacts
+    async function refreshContactsTbody() {
+        try {
+            const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) return;
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTbody = doc.querySelector('#contacts-tbody');
+            if (newTbody) {
+                const current = document.querySelector('#contacts-tbody');
+                if (current && current.innerHTML !== newTbody.innerHTML) {
+                    current.innerHTML = newTbody.innerHTML;
+                }
             }
+        } catch (e) {
+            console.error('refreshContactsTbody error:', e);
         }
-    } catch (e) {
-        console.error('refreshContactsTbody error:', e);
     }
-}
 
-function startRealtimeContacts() {
-    const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-    const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/contacts/';
-    let socket;
-    try { socket = new WebSocket(wsUrl); } catch (e) { socket = null; }
+    function startRealtimeContacts() {
+        const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/contacts/';
+        let socket;
+        try { socket = new WebSocket(wsUrl); } catch (e) { socket = null; }
 
-    if (socket) {
-        socket.addEventListener('message', () => refreshContactsTbody());
-        socket.addEventListener('close', () => setInterval(refreshContactsTbody, 5000));
-        socket.addEventListener('error', () => setInterval(refreshContactsTbody, 5000));
-        setInterval(refreshContactsTbody, 15000);
-    } else {
-        setInterval(refreshContactsTbody, 5000);
+        if (socket) {
+            socket.addEventListener('message', () => refreshContactsTbody());
+            socket.addEventListener('close', () => setInterval(refreshContactsTbody, 5000));
+            socket.addEventListener('error', () => setInterval(refreshContactsTbody, 5000));
+            setInterval(refreshContactsTbody, 15000);
+        } else {
+            setInterval(refreshContactsTbody, 5000);
+        }
     }
-}
 
-document.addEventListener('DOMContentLoaded', function() {
-    startRealtimeContacts();
-});
+    document.addEventListener('DOMContentLoaded', function () {
+        startRealtimeContacts();
+    });
 </script>
 {% endblock %}
