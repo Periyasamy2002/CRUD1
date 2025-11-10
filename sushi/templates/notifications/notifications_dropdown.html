@@ -1,0 +1,17 @@
+<div class="relative" id="notificationsRoot">
+  <button id="notifToggle" class="flex items-center focus:outline-none" aria-haspopup="true" aria-expanded="false">
+    <!-- bell icon -->
+    <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+    <span id="notifBadge" class="ml-2 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white bg-red-600 rounded-full" style="display:none">0</span>
+  </button>
+
+  <div id="notifMenu" class="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg z-50 hidden">
+    <div class="p-3 border-b font-semibold">Notifications</div>
+    <div id="notifList" class="max-h-64 overflow-y-auto p-2">
+      <div class="text-sm text-gray-500">Loading...</div>
+    </div>
+    <div class="p-2 border-t text-right">
+      <a href="{% url 'notifications:list' %}" class="text-sm text-blue-600">View all</a>
+    </div>
+  </div>
+</div>

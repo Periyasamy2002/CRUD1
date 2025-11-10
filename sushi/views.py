@@ -7,6 +7,8 @@ from django.core.mail import send_mail
 from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Prefetch
+from django.views.decorators.http import require_http_methods
+from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField
 import json
 from django.urls import reverse
 from django.conf import settings
@@ -993,3 +995,186 @@ def delete_reservation(request, pk):
         messages.success(request, 'Reservation deleted successfully.')
         return redirect('admin_reservations')
     return render(request, 'admin2/reservation_confirm_delete.html', {'reservation': reservation})
+
+# ---------------- Admin Dashboard ----------------
+
+@login_required
+def admin_dashboard(request):
+    # Get base order summary
+    order_summary = Order.dashboard_summary()
+    
+    # Enhance order summary with more details
+    order_summary.update({
+        'recent_orders': [
+            {
+                'id': order.id,
+                'customer_name': order.email.split('@')[0],
+                'item': order.item,
+                'total_amount': float(order.total_price),
+                'status': order.status.title(),
+                'created_at': order.created_at,
+                'order_type': order.order_type,
+                'delivery': order.delivery
+            }
+            for order in Order.objects.order_by('-created_at')[:10]
+        ]
+    })
+
+    # Get detailed top products with sales count and revenue
+    top_products = MenuItem.objects.annotate(
+        sales_count=Count('order'),
+        revenue=Sum(
+            ExpressionWrapper(
+                F('price') * F('order__qty'),
+                output_field=DecimalField()
+            )
+        )
+    ).filter(sales_count__gt=0).order_by('-sales_count')[:5]
+
+    top_products_data = [{
+        'name': product.name,
+        'sales': product.sales_count,
+        'revenue': float(product.revenue or 0),
+        'category': product.category.name
+    } for product in top_products]
+
+    # Get recent feedback with user details
+    recent_feedback = Contact.objects.select_related('email').filter(
+        created_at__gte=timezone.now() - timedelta(days=30)
+    ).order_by('-created_at')[:5]
+
+    feedback_data = [{
+        'message': fb.message,
+        'user_name': fb.name,
+        'date': fb.created_at,
+        'status': fb.status
+    } for fb in recent_feedback]
+
+    # Get active users and their activities
+    active_users = CustomUser.objects.filter(
+        is_active=True,
+        last_login__gte=timezone.now() - timedelta(minutes=15)
+    ).select_related('user_type')
+
+    user_activities = []
+    for user in active_users:
+        recent_orders = Order.objects.filter(
+            email=user.email,
+            created_at__gte=timezone.now() - timedelta(days=1)
+        ).count()
+        
+        user_activities.append({
+            'user': user,
+            'action': f"Placed {recent_orders} orders recently" if recent_orders else "Browsing",
+            'timestamp': user.last_login,
+            'is_online': True,
+            'type': user.user_type
+        })
+
+    # Get table reservations
+    recent_reservations = TableReservation.objects.filter(
+        date__gte=timezone.now().date()
+    ).order_by('date', 'time')[:5]
+
+    reservation_data = [{
+        'name': res.name,
+        'date': res.date,
+        'time': res.time,
+        'guests': res.guests,
+        'status': res.status
+    } for res in recent_reservations]
+
+    context = {
+        'order_summary': order_summary,
+        'top_products': top_products_data,
+        'recent_feedback': feedback_data,
+        'user_logs': user_activities,
+        'online_users_count': len(user_activities),
+        'recent_reservations': reservation_data,
+        
+        # Debug info
+        'total_orders_count': Order.objects.count(),
+        'total_users_count': CustomUser.objects.count(),
+        'total_revenue': Order.objects.aggregate(
+            total=Sum(ExpressionWrapper(
+                F('price') * F('qty'),
+                output_field=DecimalField()
+            )))['total'] or 0,
+        'debug_info': {
+            'last_update': timezone.now(),
+            'active_users': active_users.count(),
+            'pending_orders': Order.objects.filter(status='pending').count()
+        }
+    }
+
+    return render(request, 'admin2/adminmanage.html', context)
+
+@login_required
+@require_http_methods(["GET"])
+def dashboard_metrics(request):
+    try:
+        # Get order summary
+        order_summary = Order.dashboard_summary()
+        
+        # Add CSRF token to response for security
+        return JsonResponse({
+            'status': 'success',
+            'data': order_summary
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+@login_required
+@require_http_methods(["GET"])
+def dashboard_data(request):
+    try:
+        # Prepare timestamp for active users
+        active_threshold = timezone.now() - timezone.timedelta(minutes=15)
+        
+        data = {
+            'orders': list(Order.objects.values(
+                'id', 'item', 'price', 'qty', 'status', 'created_at', 'email'
+            ).order_by('-created_at')[:10]),
+            
+            'top_products': list(MenuItem.objects.annotate(
+                sales=Count('order')
+            ).values('name', 'sales')
+            .filter(sales__gt=0)
+            .order_by('-sales')[:5]),
+            
+            'feedback': list(Contact.objects.values(
+                'name', 'message', 'created_at', 'status'
+            ).order_by('-created_at')[:5]),
+            
+            'active_users': list(CustomUser.objects.filter(
+                is_active=True,
+                last_login__gte=active_threshold
+            ).values('username', 'last_login', 'email'))
+        }
+
+        return JsonResponse({
+            'status': 'success',
+            'data': data
+        })
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
+@login_required
+def admin_dashboard(request):
+    """Main dashboard view that renders the template"""
+    # Initial data load
+    order_summary = Order.dashboard_summary()
+    
+    context = {
+        'order_summary': order_summary,
+        'page_title': 'Admin Dashboard',
+        'debug_mode': True  # For development only
+    }
+    
+    return render(request, 'admin2/adminmanage.html', context)

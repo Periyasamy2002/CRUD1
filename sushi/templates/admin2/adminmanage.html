@@ -3,7 +3,8 @@
 {% block title %}Admin Dashboard{% endblock %}
 
 {% block content %}
-<div class="dashboard">
+
+<div class="dashboard" id="adminDashboard">
   <!-- ===== Header Section ===== -->
   <div class="dash-header">
     <h2 class="text-3xl font-bold text-gray-800">Admin Dashboard</h2>
@@ -20,6 +21,11 @@
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
         Export CSV
       </button>
+
+      <div class="notifications-container">
+        {% include 'notifications/notifications_dropdown.html' with notifications=notifications %}
+        <div id="notificationToast" class="notification-toast" hidden></div>
+      </div>
     </div>
   </div>
 
@@ -31,7 +37,9 @@
       </div>
       <div class="meta">
         <span class="label">Total Orders</span>
-        <span class="value" id="totalOrders">{{ total_orders|default:"0" }}</span>
+        <span class="value" id="totalOrders">
+          {{ order_summary.total_orders|default:"0" }}
+        </span>
       </div>
     </div>
     <div class="card">
@@ -40,7 +48,9 @@
       </div>
       <div class="meta">
         <span class="label">Total Revenue</span>
-        <span class="value" id="totalRevenue">₹{{ total_revenue|default:"0.00" }}</span>
+        <span class="value" id="totalRevenue">
+          ₹{{ order_summary.total_revenue|floatformat:2|default:"0.00" }}
+        </span>
       </div>
     </div>
     <div class="card">
@@ -49,7 +59,9 @@
       </div>
       <div class="meta">
         <span class="label">Pending Orders</span>
-        <span class="value" id="pendingOrders">{{ pending_orders|default:"0" }}</span>
+        <span class="value" id="pendingOrders">
+          {{ order_summary.pending_orders|default:"0" }}
+        </span>
       </div>
     </div>
     <div class="card">
@@ -58,7 +70,9 @@
       </div>
       <div class="meta">
         <span class="label">Delivered Orders</span>
-        <span class="value" id="deliveredOrders">{{ delivered_orders|default:"0" }}</span>
+        <span class="value" id="deliveredOrders">
+          {{ order_summary.delivered_orders|default:"0" }}
+        </span>
       </div>
     </div>
   </div>
@@ -66,8 +80,16 @@
   <!-- ===== Charts + Recent Orders ===== -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
     <div class="lg:col-span-2 panel">
-      <h3 class="text-xl font-semibold mb-4">Monthly Revenue</h3>
-      <canvas id="revenueChart"></canvas>
+      <h3 class="text-xl font-semibold mb-4">
+        Monthly Revenue
+        <span id="chartError" class="text-red-500 text-sm hidden">Failed to load chart data</span>
+      </h3>
+      <div class="chart-container" style="position: relative; height:300px;">
+        <canvas id="revenueChart"></canvas>
+        <div id="chartLoader" class="flex items-center justify-center absolute inset-0 bg-white/80">
+          <div class="spinner"></div>
+        </div>
+      </div>
     </div>
 
     <div class="panel recent-orders">
@@ -78,22 +100,24 @@
             <tr>
               <th class="text-left">ID</th>
               <th class="text-left">Customer</th>
+              <th class="text-left">Items</th>
               <th class="text-left">Total</th>
               <th class="text-left">Status</th>
               <th class="text-left">Date</th>
             </tr>
           </thead>
           <tbody>
-            {% for order in recent_orders %}
+            {% for order in order_summary.recent_orders %}
             <tr>
               <td>{{ order.id }}</td>
               <td>{{ order.customer_name }}</td>
-              <td>₹{{ order.total_amount }}</td>
+              <td>{{ order.item }}</td>
+              <td>₹{{ order.total_amount|floatformat:2 }}</td>
               <td><span class="status {{ order.status|lower }}">{{ order.status }}</span></td>
-              <td>{{ order.created_at|date:"Y-m-d" }}</td>
+              <td>{{ order.created_at|date:"d M Y H:i" }}</td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted py-4">No recent orders</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">No recent orders</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -130,9 +154,30 @@
 
     <div class="panel">
       <h3 class="text-xl font-semibold mb-4">Recent User Activity</h3>
+
+      {# Online users summary (uses online_users_count or online_users queryset length if provided) #}
+      <p class="mb-2 text-sm text-gray-600">Online users:
+        <strong id="onlineUsers">
+          {% if online_users_count|default_if_none:"" != "" %}{{ online_users_count }}
+          {% elif online_users %}{{ online_users|length }}
+          {% else %}0{% endif %}
+        </strong>
+      </p>
+
       <ul id="userActivity" class="space-y-2">
         {% for log in user_logs %}
-        <li>{{ log.user }} — {{ log.action }} <span class="text-gray-500">({{ log.timestamp|timesince }} ago)</span></li>
+        <li>
+          {# show full name -> username -> raw user object/string #}
+          {{ log.user.get_full_name|default:log.user.username|default:log.user }} — {{ log.action|default:"" }}
+          {% if log.is_online or log.online or log.status == 'online' %}
+            <span class="text-green-600 font-semibold ml-2">(online)</span>
+          {% endif %}
+          {% if log.timestamp %}
+            <span class="text-gray-500"> ({{ log.timestamp|timesince }} ago)</span>
+          {% else %}
+            <span class="text-gray-500"> (just now)</span>
+          {% endif %}
+        </li>
         {% empty %}
         <li class="text-gray-500">No user activity found</li>
         {% endfor %}
@@ -145,6 +190,14 @@
     <div class="spinner" role="status" aria-hidden="true"></div>
     <p>Updating dashboard...</p>
   </div>
+</div>
+
+<!-- Add debug info section (remove in production) -->
+<div id="debugInfo" class="fixed top-0 right-0 bg-black/80 text-white p-4 m-4 rounded-lg text-sm" style="z-index: 9999;">
+  <p>Raw Counts:</p>
+  <pre>Orders: {{ total_orders_count|default:"N/A" }}
+Users: {{ total_users_count|default:"N/A" }}
+Revenue: {{ total_revenue|default:"N/A" }}</pre>
 </div>
 
 <!-- Small styling to improve visuals and smoothness -->
@@ -162,159 +215,134 @@
 .status.delivered { background:#ecfdf5; color:#065f46; }
 .status.cancelled { background:#fff1f2; color:#7f1d1d; }
 table tr { transition: background .12s ease, transform .12s ease; }
+.notification-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 1rem;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 50;
+    }
+    .notification-toast.error { background: #fee2e2; color: #991b1b; }
+    .notification-toast.success { background: #dcfce7; color: #166534; }
 </style>
 
 <!-- ===== Scripts ===== -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const loader = document.getElementById("loader");
-  const totalOrdersEl = document.getElementById("totalOrders");
-  const totalRevenueEl = document.getElementById("totalRevenue");
-  const pendingOrdersEl = document.getElementById("pendingOrders");
-  const deliveredOrdersEl = document.getElementById("deliveredOrders");
-  const ordersTableBody = document.getElementById("ordersTable").querySelector("tbody");
-  const searchInput = document.getElementById("searchOrders");
-  const exportBtn = document.getElementById("exportCSV");
+    const dashboard = {
+        elements: {
+            // ...existing elements...
+        },
+        
+        async fetchDashboardData() {
+            try {
+                const [metricsResponse, dataResponse] = await Promise.all([
+                    fetch('/api/dashboard/metrics/'),
+                    fetch('/api/dashboard/data/')
+                ]);
 
-  const toggleLoader = (show) => {
-    if (show) { loader.hidden = false; loader.setAttribute("aria-hidden", "false"); }
-    else { loader.hidden = true; loader.setAttribute("aria-hidden", "true"); }
-  };
+                const metrics = await metricsResponse.json();
+                const data = await dataResponse.json();
 
-  // Initial data baked into template (fallback if API isn't available)
-  const initialDashboard = {
-    total_orders: Number("{{ total_orders|default:'0' }}") || 0,
-    total_revenue: (function(s){
-      // safely strip any non-numeric/decimal characters and parse
-      const cleaned = String("{{ total_revenue|default:'0.00' }}").replace(/[^0-9\.\-]+/g, '');
-      return Number(cleaned) || 0;
-    })(),
-    pending_orders: Number("{{ pending_orders|default:'0' }}") || 0,
-    delivered_orders: Number("{{ delivered_orders|default:'0' }}") || 0,
-    recent_orders: [
-      {% for order in recent_orders %}
-      {
-        id: {{ order.id }},
-        customer_name: "{{ order.customer_name|default:order.email|escapejs }}",
-        total_amount: Number("{{ order.total_price|default:'0.00' }}"),
-        status: "{{ order.status|title|escapejs }}",
-        created_at: "{{ order.created_at|date:'Y-m-d H:i:s' }}"
-      }{% if not forloop.last %},{% endif %}
-      {% endfor %}
-    ],
-    chart_data: {
-      labels: {{ chart_data.labels|default:"[]"|safe }},
-      values: {{ chart_data.values|default:"[]"|safe }}
-    }
-  };
+                if (metrics.status === 'success' && data.status === 'success') {
+                    this.updateDashboard(metrics.data, data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch dashboard data:', error);
+                this.showNotification('Failed to update dashboard', 'error');
+            }
+        },
 
+        updateDashboard(metrics, data) {
+            // Update metrics
+            document.getElementById('totalOrders').textContent = metrics.total_orders;
+            document.getElementById('totalRevenue').textContent = '₹' + metrics.total_revenue.toFixed(2);
+            document.getElementById('pendingOrders').textContent = metrics.pending_orders;
+            document.getElementById('deliveredOrders').textContent = metrics.delivered_orders;
 
-  // Render to DOM
-  function applyDashboard(data) {
-    totalOrdersEl.textContent = data.total_orders;
-    totalRevenueEl.textContent = "₹" + Number(data.total_revenue).toFixed(2);
-    pendingOrdersEl.textContent = data.pending_orders;
-    deliveredOrdersEl.textContent = data.delivered_orders;
+            // Update orders table
+            const tbody = document.querySelector('#ordersTable tbody');
+            tbody.innerHTML = data.orders.map(order => `
+                <tr>
+                    <td>${order.id}</td>
+                    <td>${order.email.split('@')[0]}</td>
+                    <td>${order.item}</td>
+                    <td>₹${(order.price * order.qty).toFixed(2)}</td>
+                    <td><span class="status ${order.status.toLowerCase()}">${order.status}</span></td>
+                    <td>${new Date(order.created_at).toLocaleString()}</td>
+                </tr>
+            `).join('');
 
-    ordersTableBody.innerHTML = data.recent_orders.length
-      ? data.recent_orders.map(order =>
-        `<tr>
-           <td>${order.id}</td>
-           <td>${order.customer_name}</td>
-           <td>₹${Number(order.total_amount).toFixed(2)}</td>
-           <td><span class="status ${order.status.toLowerCase()}">${order.status}</span></td>
-           <td>${order.created_at.split(' ')[0]}</td>
-         </tr>`).join('')
-      : `<tr><td colspan="5" class="text-center text-muted py-4">No recent orders</td></tr>`;
+            // Update top products
+            const productsList = document.getElementById('topProducts');
+            productsList.innerHTML = data.top_products.map(product => `
+                <li>${product.name} — <span class="font-semibold">${product.sales} sold</span></li>
+            `).join('');
 
-    renderChart(data.chart_data);
-  }
+            // Update feedback
+            const feedbackList = document.getElementById('feedbackList');
+            feedbackList.innerHTML = data.feedback.map(fb => `
+                <li>
+                    <p class="italic">"${fb.message}"</p>
+                    <small class="text-gray-500">- ${fb.name} (${new Date(fb.created_at).toLocaleDateString()})</small>
+                </li>
+            `).join('');
 
-  // Chart.js rendering
-  let chartInstance;
-  function renderChart(chartData) {
-    const ctxEl = document.getElementById("revenueChart");
-    if (!ctxEl) return;
-    const ctx = ctxEl.getContext("2d");
-    if (chartInstance) chartInstance.destroy();
-    chartInstance = new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: chartData.labels || [],
-        datasets: [{
-          label: "Revenue (₹)",
-          data: chartData.values || [],
-          borderColor: "#10b981",
-          backgroundColor: "rgba(16,185,129,0.12)",
-          pointRadius: 3,
-          tension: 0.35,
-          fill: true
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => '₹' + v } } } }
-    });
-  }
+            // Update user activity
+            const userActivity = document.getElementById('userActivity');
+            document.getElementById('onlineUsers').textContent = data.active_users.length;
+            userActivity.innerHTML = data.active_users.map(user => `
+                <li>
+                    ${user.username} 
+                    <span class="text-green-600 font-semibold ml-2">(online)</span>
+                    <span class="text-gray-500">(${this.timeAgo(new Date(user.last_login))})</span>
+                </li>
+            `).join('');
 
-  // Try fetching live API but gracefully fallback to template-provided data
-  async function fetchDashboardData() {
-    toggleLoader(true);
-    try {
-      const res = await fetch("/admin/api/dashboard/");
-      if (!res.ok) throw new Error("Live API not available");
-      const data = await res.json();
-      applyDashboard(data);
-    } catch (err) {
-      // fallback to initial data baked into template
-      applyDashboard(initialDashboard);
-    } finally {
-      toggleLoader(false);
-    }
-  }
+            // Update chart if we have chart data
+            if (metrics.chart_data) {
+                this.initChart(metrics.chart_data);
+            }
+        },
 
-  // Debounced search for better UX
-  function debounce(fn, wait) {
-    let t;
-    return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); };
-  }
-  searchInput.addEventListener("input", debounce(function () {
-    const search = this.value.trim().toLowerCase();
-    ordersTableBody.querySelectorAll("tr").forEach(row => {
-      const visible = !search || row.textContent.toLowerCase().includes(search);
-      row.style.display = visible ? "" : "none";
-    });
-  }, 180));
+        timeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            const intervals = {
+                year: 31536000,
+                month: 2592000,
+                week: 604800,
+                day: 86400,
+                hour: 3600,
+                minute: 60,
+                second: 1
+            };
+            for (let [unit, secondsInUnit] of Object.entries(intervals)) {
+                const interval = Math.floor(seconds / secondsInUnit);
+                if (interval > 1) {
+                    return `${interval} ${unit}s ago`;
+                } else if (interval === 1) {
+                    return `1 ${unit} ago`;
+                }
+            }
+            return 'just now';
+        },
 
-  // Improved CSV export (escape commas / quotes)
-  exportBtn.addEventListener("click", () => {
-    const rows = Array.from(ordersTableBody.querySelectorAll("tr"))
-      .filter(r => r.style.display !== "none")
-      .map(r => Array.from(r.children).map(td => {
-        let txt = td.textContent.trim();
-        if (txt.includes('"') || txt.includes(',')) txt = '"' + txt.replace(/"/g, '""') + '"';
-        return txt;
-      }).join(","));
-    if (!rows.length) return alert("No rows to export");
-    const csv = "Order ID,Customer,Total,Status,Date\n" + rows.join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "orders_report.csv";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  });
+        startAutoRefresh() {
+            setInterval(() => this.fetchDashboardData(), 30000); // Refresh every 30 seconds
+        },
 
-  // Manual refresh
-  document.getElementById("refreshDashboard").addEventListener("click", fetchDashboardData);
+        init() {
+            this.fetchDashboardData();
+            this.startAutoRefresh();
+            this.setupEventListeners();
+        }
+    };
 
-  // Auto-refresh every 5 min (but keep initial render immediately)
-  applyDashboard(initialDashboard);
-  setInterval(fetchDashboardData, 300000);
-
-
-
+    dashboard.init();
+});
 </script>
 {% endblock %}

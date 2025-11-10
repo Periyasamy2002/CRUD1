@@ -104,6 +104,18 @@ class Order(models.Model):
     def total_price(self):
         return self.price * self.qty
 
+    def get_formatted_date(self):
+        """Return formatted date for display"""
+        if self.order_date:
+            return self.order_date.strftime("%d %b %Y")
+        return self.created_at.strftime("%d %b %Y")
+
+    def get_formatted_time(self):
+        """Return formatted time for display"""
+        if self.order_time:
+            return self.order_time.strftime("%I:%M %p")
+        return self.created_at.strftime("%I:%M %p")
+
     # Added helper to return a simple dict for templates / debugging
     def to_dict(self):
         return {
@@ -121,64 +133,74 @@ class Order(models.Model):
             "delivery": self.delivery,
             "created_at": self.created_at.isoformat(),
             "status": self.status,
+            "formatted_date": self.get_formatted_date(),
+            "formatted_time": self.get_formatted_time(),
+            "formatted_created": self.created_at.strftime("%d %b %Y %I:%M %p"),
         }
 
     @classmethod
     def dashboard_summary(cls, months=6):
-        """
-        Return a dict with totals, recent orders and a small monthly revenue series.
-        Useful for views or lightweight API endpoints.
-        """
+        """Enhanced dashboard summary with better date handling"""
         now = timezone.now()
-        total_orders = cls.objects.count()
-        # compute revenue as sum(price * qty)
+        today = now.date()
+        
+        # Get basic counts
+        summary = {
+            "total_orders": cls.objects.count(),
+            "today_orders": cls.objects.filter(created_at__date=today).count(),
+            "pending_orders": cls.objects.filter(status__iexact='pending').count(),
+            "delivered_orders": cls.objects.filter(status__iexact='delivered').count(),
+        }
+
+        # Calculate revenue
         revenue_expr = ExpressionWrapper(F('price') * F('qty'), output_field=DecimalField())
+        
+        # Total revenue
         agg = cls.objects.aggregate(total_revenue=Sum(revenue_expr))
-        total_revenue = float(agg.get('total_revenue') or 0.0)
+        summary["total_revenue"] = float(agg.get('total_revenue') or 0.0)
+        
+        # Today's revenue
+        today_agg = cls.objects.filter(created_at__date=today).aggregate(
+            today_revenue=Sum(revenue_expr)
+        )
+        summary["today_revenue"] = float(today_agg.get('today_revenue') or 0.0)
 
-        pending = cls.objects.filter(status__iexact='pending').count()
-        delivered = cls.objects.filter(status__iexact='delivered').count()
-
-        recent_qs = cls.objects.order_by('-created_at')[:10]
+        # Recent orders with better formatting
         recent_orders = []
-        for o in recent_qs:
+        for o in cls.objects.order_by('-created_at')[:10]:
             recent_orders.append({
                 "id": o.id,
-                "customer_name": (o.email.split('@')[0] if o.email else "unknown"),
+                "customer_name": o.email.split('@')[0] if o.email else "unknown",
                 "total_amount": float(o.total_price),
                 "status": o.status.title(),
+                "date": o.get_formatted_date(),
+                "time": o.get_formatted_time(),
                 "created_at": o.created_at.strftime("%Y-%m-%d %H:%M:%S"),
             })
+        summary["recent_orders"] = recent_orders
 
-        # build months list (chronological) for the last `months` months
-        year = now.year
-        month = now.month
-        months_list = []
-        for i in range(months):
-            months_list.append((year, month))
-            month -= 1
-            if month == 0:
-                month = 12
-                year -= 1
-        months_list.reverse()
-
-        labels = []
-        values = []
-        for y, m in months_list:
-            labels.append(calendar.month_abbr[m])
-            total = cls.objects.filter(created_at__year=y, created_at__month=m).aggregate(
-                month_total=Sum(ExpressionWrapper(F('price') * F('qty'), output_field=DecimalField()))
+        # Monthly chart data with proper date formatting
+        months_data = []
+        for i in range(months-1, -1, -1):
+            target_date = now - timezone.timedelta(days=i*30)
+            month_total = cls.objects.filter(
+                created_at__year=target_date.year,
+                created_at__month=target_date.month
+            ).aggregate(
+                month_total=Sum(revenue_expr)
             )['month_total'] or 0
-            values.append(float(total))
+            
+            months_data.append({
+                "label": target_date.strftime("%b %Y"),
+                "value": float(month_total)
+            })
 
-        return {
-            "total_orders": total_orders,
-            "total_revenue": total_revenue,
-            "pending_orders": pending,
-            "delivered_orders": delivered,
-            "recent_orders": recent_orders,
-            "chart_data": {"labels": labels, "values": values}
+        summary["chart_data"] = {
+            "labels": [m["label"] for m in months_data],
+            "values": [m["value"] for m in months_data]
         }
+
+        return summary
 
 # ---------------- Contact ----------------
 class Contact(models.Model):

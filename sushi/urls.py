@@ -55,6 +55,8 @@ urlpatterns = [
 
     # --- API ---
     path('api/search_menu_items/', views.search_menu_items_api, name='search_menu_items_api'),
+    path('api/dashboard/metrics/', views.dashboard_metrics, name='dashboard_metrics'),
+    path('api/dashboard/data/', views.dashboard_data, name='dashboard_data'),
 
     # --- Dashboard ---
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -71,6 +73,9 @@ urlpatterns = [
     path('admin2/reservations/<int:pk>/view/', views.view_reservation, name='view_reservation'),
     path('admin2/reservations/<int:pk>/delete/', views.delete_reservation, name='delete_reservation'),
     path('admin2/reservations/<int:pk>/send-email/<str:mail_type>/', views.send_confirmation_email, name='send_confirmation_email'),
+    # In urls.py
+path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
+path('api/dashboard/metrics/', views.dashboard_metrics, name='dashboard_metrics'),
 ]
 
 if settings.DEBUG:
