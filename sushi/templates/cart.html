@@ -183,7 +183,7 @@
                 <div class="flex justify-between mt-8">
                     <button @click="step = 2" class="text-gray-600 font-semibold hover:underline">‹ Edit Details</button>
                     <button @click="submitOrder()" :disabled="loading" class="bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 disabled:bg-gray-400 flex items-center">
-                        <span x-show="!loading">Confirm & Pay</span>
+                        <span x-show="!loading">Confirm Your Order</span>
                         <span x-show="loading">
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -199,7 +199,7 @@
             <div x-show="step === 4" class="text-center py-12">
                 <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Successful!</h2>
-                <p class="text-gray-600">Thank you for your order <!-- . A confirmation has been sent to <strong x-text="email"></strong>. --></p>
+                <p class="text-gray-600">Thank you for your order. A confirmation has been sent to the manager.</p>
                
                 <!-- allow user to review cart (which is cleared) or go back to menu -->
                 <div class="mt-8 flex items-center justify-center gap-4">

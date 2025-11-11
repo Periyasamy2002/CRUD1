@@ -540,6 +540,57 @@ def order_submit(request):
         # store created ids in session so cart.html can show last successful order(s)
         request.session['last_order_ids'] = created_ids
 
+        # Send email confirmation
+        subject = 'New Order Received'
+        
+        # Prepare order details for the email body
+        order_details_str = ""
+        total_price = 0
+        if cart and isinstance(cart, list):
+            for c in cart:
+                name = c.get('name') or c.get('item') or c.get('item_name')
+                price = _num(c.get('price'), 0)
+                qty = int(c.get('qty') or c.get('quantity') or 1)
+                item_total = price * qty
+                total_price += item_total
+                order_details_str += f"  - {name} (x{qty}): {item_total:.2f} CHF\n"
+        else:
+            name = data.get('item') or data.get('name')
+            price = _num(data.get('price') or data.get('amount'), 0)
+            qty = int(data.get('qty') or data.get('quantity') or 1)
+            total_price = price * qty
+            order_details_str = f"  - {name} (x{qty}): {total_price:.2f} CHF\n"
+
+        message = f"""
+        A new order has been placed.
+
+        Customer Details:
+          Email: {email}
+          Mobile: {data.get('mobile') or data.get('phone') or ''}
+          Address: {data.get('address') or ''}
+
+        Order Details:
+        {order_details_str}
+        Total Price: {total_price:.2f} CHF
+
+        Delivery Method: {data.get('delivery') or ''}
+        Order Type: {data.get('orderType') or data.get('order_type') or 'now'}
+        """
+        if (data.get('orderType') or data.get('order_type')) == 'later':
+            message += f"Scheduled for: {data.get('orderDate')} at {data.get('orderTime')}"
+
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                ['saranvignesh55@gmail.com'],
+                fail_silently=False,
+            )
+        except Exception as e:
+            # Log the error but don't fail the request
+            logging.error(f"Failed to send order confirmation email: {e}")
+
         if is_json:
             return JsonResponse({'success': True, 'order_ids': created_ids})
         else:
