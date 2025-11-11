@@ -1,0 +1,13 @@
+{# ...existing template code... #}
+<td class="order-actions">
+	<button class="order-status-btn" data-order-id="{{ order.id }}" data-action="accept">Accept</button>
+	<button class="order-status-btn" data-order-id="{{ order.id }}" data-action="making">Making</button>
+	<button class="order-status-btn" data-order-id="{{ order.id }}" data-action="collect">Collect</button>
+	<button class="order-status-btn" data-order-id="{{ order.id }}" data-action="delivered">Deliver</button>
+	<button class="order-status-btn cancel" data-order-id="{{ order.id }}" data-action="cancel">Cancel</button>
+</td>
+
+{# Include SweetAlert2 and your static JS once in the page (footer) #}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'js/order_status.js' %}"></script>
+{# ...existing template code... #}

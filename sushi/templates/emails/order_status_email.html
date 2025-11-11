@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background-color: #ff6b6b; color: white; padding: 20px; text-align: center; }
+        .content { background-color: #f9f9f9; padding: 20px; }
+        .status-badge { display: inline-block; padding: 8px 12px; border-radius: 4px; font-weight: bold; }
+        .accepted { background-color: #d4edda; color: #155724; }
+        .making { background-color: #fff3cd; color: #856404; }
+        .ready { background-color: #d1ecf1; color: #0c5460; }
+        .delivered { background-color: #e2e3e5; color: #383d41; }
+        .cancelled { background-color: #f8d7da; color: #721c24; }
+        .item-details { background-color: white; padding: 15px; margin: 10px 0; border-left: 4px solid #ff6b6b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sushi Hotel - Order Status Update</h1>
+        </div>
+        <div class="content">
+            <p>Hello,</p>
+            <p>Your order status has been updated:</p>
+            
+            <div class="status-badge {% if status == 'Accepted' %}accepted{% elif status == 'Making' %}making{% elif status == 'Ready to Collect' %}ready{% elif status == 'Delivered' %}delivered{% elif status == 'Cancelled' %}cancelled{% endif %}">
+                {{ status }}
+            </div>
+            
+            <div class="item-details">
+                <h3>Order Details:</h3>
+                <p><strong>Item:</strong> {{ item }}</p>
+                <p><strong>Quantity:</strong> {{ qty }}</p>
+                <p><strong>Price per item:</strong> {{ price|floatformat:2 }} CHF</p>
+                <p><strong>Total Price:</strong> {{ total_price|floatformat:2 }} CHF</p>
+                <p><strong>Mobile:</strong> {{ mobile }}</p>
+            </div>
+            
+            {% if status == 'Cancelled' and reason %}
+            <div style="background-color: #f8d7da; padding: 15px; border-radius: 4px; margin: 15px 0;">
+                <strong>Cancellation Reason:</strong>
+                <p>{{ reason }}</p>
+            </div>
+            {% endif %}
+            
+            {% if status == 'Ready to Collect' %}
+            <p style="color: green; font-weight: bold;">Your order is ready! Please come and collect it.</p>
+            {% elif status == 'Delivered' %}
+            <p style="color: green; font-weight: bold;">Thank you for your order! Enjoy your meal.</p>
+            {% endif %}
+            
+            <p>Thank you for ordering from Sushi Hotel!</p>
+        </div>
+    </div>
+</body>
+</html>

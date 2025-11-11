@@ -42,11 +42,7 @@
                     <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
                     <td class="px-4 py-2 border">{{ order.total_price|floatformat:2 }} CHF</td>
                     <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
-                        {% if order.status == 'Cancelled' %}
-                            Cancel Order
-                        {% else %}
-                            {{ order.status }}
-                        {% endif %}
+                        {{ order.status }}
                     </td>
                     <td class="px-4 py-2 border">
                         <form method="post" action="{% url 'order_action_admin' order.id %}" class="inline order-action-form" data-order-id="{{ order.id }}">
@@ -79,112 +75,200 @@
 </div>
 
 <script>
-function initCancelModal() {
-    const modal = document.getElementById('cancel-modal');
-    const modalConfirmBtn = document.getElementById('modal-confirm-btn');
-    const modalCancelBtn = document.getElementById('modal-cancel-btn');
-    const reasonTextarea = document.getElementById('cancel-reason-textarea');
-    const cancelButtons = document.querySelectorAll('.cancel-btn');
-    let activeForm = null;
+    // Refresh page every 30 seconds
+    setInterval(function(){
+        window.location.reload();
+    }, 30000); // 30 seconds
 
-    // detach previous listeners safely by cloning modal (simple reset)
-    const modalClone = modal.cloneNode(true);
-    modal.parentNode.replaceChild(modalClone, modal);
+    // Initialize Firebase
+    const firebaseConfig = {
+        apiKey: "{{ FIREBASE_API_KEY }}",
+        projectId: "{{ FIREBASE_PROJECT_ID }}",
+        messagingSenderId: "{{ FIREBASE_SENDER_ID }}",
+        appId: "{{ FIREBASE_APP_ID }}"
+    };
 
-    // re-select elements from the fresh DOM
-    const freshModal = document.getElementById('cancel-modal');
-    const freshConfirm = document.getElementById('modal-confirm-btn');
-    const freshCancel = document.getElementById('modal-cancel-btn');
-    const freshTextarea = document.getElementById('cancel-reason-textarea');
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
 
-    document.querySelectorAll('.cancel-btn').forEach(button => {
-        button.removeAttribute('onclick');
-        button.addEventListener('click', function(event) {
-            event.preventDefault();
-            activeForm = button.closest('form');
-            freshModal.style.display = 'flex';
+    // Configure Toastr
+    toastr.options = {
+        closeButton: true,
+        progressBar: true,
+        positionClass: "toast-top-right",
+    };
+
+    // Handle form submissions
+    document.querySelectorAll('.order-action-form').forEach(form => {
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const action = formData.get('action');
+            const orderId = this.dataset.orderId;
+            
+            try {
+                const response = await fetch(this.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Show toast notification
+                    toastr.success(data.message);
+                    
+                    // Update status cell
+                    const statusCell = document.getElementById(`status-${orderId}`);
+                    if (statusCell) {
+                        statusCell.textContent = data.new_status;
+                        updateStatusColor(statusCell, data.new_status);
+                    }
+                    
+                    // Update navbar badge if order count changed
+                    if (data.pending_count !== undefined) {
+                        updateOrderBadge(data.pending_count);
+                    }
+                    
+                    // Refresh orders table
+                    refreshTbody('order-food-tbody');
+                } else {
+                    toastr.error(data.message || 'An error occurred');
+                }
+            } catch (error) {
+                toastr.error('Failed to process the order');
+                console.error('Error:', error);
+            }
         });
     });
 
-    freshCancel.addEventListener('click', function() {
-        freshModal.style.display = 'none';
-        freshTextarea.value = '';
-    });
-
-    freshConfirm.addEventListener('click', function() {
-        if (activeForm) {
-            const reasonInput = activeForm.querySelector('.cancel-reason-input');
-            if (reasonInput) {
-                reasonInput.value = freshTextarea.value;
-            }
-            // Ensure the form submits its action value when submitted programmatically:
-            // create or set a hidden input named "action" with value "cancel"
-            let actionHidden = activeForm.querySelector('input[name="action"][type="hidden"]');
-            if (!actionHidden) {
-                actionHidden = document.createElement('input');
-                actionHidden.type = 'hidden';
-                actionHidden.name = 'action';
-                activeForm.appendChild(actionHidden);
-            }
-            actionHidden.value = 'cancel';
-
-            activeForm.submit();
+    function updateOrderBadge(count) {
+        const badge = document.getElementById('order-count-badge');
+        if (badge) {
+            badge.textContent = count;
+            badge.style.display = count > 0 ? 'inline-block' : 'none';
         }
-    });
+    }
 
-    freshModal.addEventListener('click', function(event) {
-        if (event.target === freshModal) {
+    function updateStatusColor(cell, status) {
+        cell.className = 'px-4 py-2 border';
+        if (status === 'Accepted') cell.classList.add('bg-green-100');
+        else if (status === 'Making') cell.classList.add('bg-yellow-100');
+        else if (status === 'Ready to Collect') cell.classList.add('bg-blue-100');
+        else if (status === 'Delivered') cell.classList.add('bg-purple-100');
+        else if (status === 'Cancelled') cell.classList.add('bg-red-100');
+    }
+
+    function initCancelModal() {
+        const modal = document.getElementById('cancel-modal');
+        const modalConfirmBtn = document.getElementById('modal-confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const reasonTextarea = document.getElementById('cancel-reason-textarea');
+        const cancelButtons = document.querySelectorAll('.cancel-btn');
+        let activeForm = null;
+
+        // detach previous listeners safely by cloning modal (simple reset)
+        const modalClone = modal.cloneNode(true);
+        modal.parentNode.replaceChild(modalClone, modal);
+
+        // re-select elements from the fresh DOM
+        const freshModal = document.getElementById('cancel-modal');
+        const freshConfirm = document.getElementById('modal-confirm-btn');
+        const freshCancel = document.getElementById('modal-cancel-btn');
+        const freshTextarea = document.getElementById('cancel-reason-textarea');
+
+        document.querySelectorAll('.cancel-btn').forEach(button => {
+            button.removeAttribute('onclick');
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                activeForm = button.closest('form');
+                freshModal.style.display = 'flex';
+            });
+        });
+
+        freshCancel.addEventListener('click', function() {
             freshModal.style.display = 'none';
             freshTextarea.value = '';
-        }
-    });
-}
+        });
 
-// Replace tbody by fetching current page and extracting tbody#order-food-tbody
-async function refreshTbody(tbodyId) {
-    try {
-        const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
-        if (!res.ok) return;
-        const html = await res.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const newTbody = doc.querySelector('#' + tbodyId);
-        if (newTbody) {
-            const current = document.querySelector('#' + tbodyId);
-            if (current && current.innerHTML !== newTbody.innerHTML) {
-                current.innerHTML = newTbody.innerHTML;
-                // re-initialize behaviour for dynamic parts (modal buttons etc.)
-                initCancelModal();
+        freshConfirm.addEventListener('click', function() {
+            if (activeForm) {
+                const reasonInput = activeForm.querySelector('.cancel-reason-input');
+                if (reasonInput) {
+                    reasonInput.value = freshTextarea.value;
+                }
+                // Ensure the form submits its action value when submitted programmatically:
+                // create or set a hidden input named "action" with value "cancel"
+                let actionHidden = activeForm.querySelector('input[name="action"][type="hidden"]');
+                if (!actionHidden) {
+                    actionHidden = document.createElement('input');
+                    actionHidden.type = 'hidden';
+                    actionHidden.name = 'action';
+                    activeForm.appendChild(actionHidden);
+                }
+                actionHidden.value = 'cancel';
+
+                activeForm.submit();
             }
+        });
+
+        freshModal.addEventListener('click', function(event) {
+            if (event.target === freshModal) {
+                freshModal.style.display = 'none';
+                freshTextarea.value = '';
+            }
+        });
+    }
+
+    // Replace tbody by fetching current page and extracting tbody#order-food-tbody
+    async function refreshTbody(tbodyId) {
+        try {
+            const res = await fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' }});
+            if (!res.ok) return;
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            const newTbody = doc.querySelector('#' + tbodyId);
+            if (newTbody) {
+                const current = document.querySelector('#' + tbodyId);
+                if (current && current.innerHTML !== newTbody.innerHTML) {
+                    current.innerHTML = newTbody.innerHTML;
+                    // re-initialize behaviour for dynamic parts (modal buttons etc.)
+                    initCancelModal();
+                }
+            }
+        } catch (e) {
+            console.error('refreshTbody error:', e);
         }
-    } catch (e) {
-        console.error('refreshTbody error:', e);
     }
-}
 
-function startRealtimeOrders() {
-    const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
-    const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/orders/';
-    let socket;
-    try {
-        socket = new WebSocket(wsUrl);
-    } catch (e) {
-        socket = null;
+    function startRealtimeOrders() {
+        const wsProtocol = (location.protocol === 'https:') ? 'wss:' : 'ws:';
+        const wsUrl = wsProtocol + '//' + location.host + '/ws/admin/orders/';
+        let socket;
+        try {
+            socket = new WebSocket(wsUrl);
+        } catch (e) {
+            socket = null;
+        }
+        if (socket) {
+            socket.addEventListener('message', () => refreshTbody('order-food-tbody'));
+            socket.addEventListener('close', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
+            socket.addEventListener('error', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
+            // occasional full sync
+            setInterval(() => refreshTbody('order-food-tbody'), 15000);
+        } else {
+            setInterval(() => refreshTbody('order-food-tbody'), 5000);
+        }
     }
-    if (socket) {
-        socket.addEventListener('message', () => refreshTbody('order-food-tbody'));
-        socket.addEventListener('close', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
-        socket.addEventListener('error', () => setInterval(() => refreshTbody('order-food-tbody'), 5000));
-        // occasional full sync
-        setInterval(() => refreshTbody('order-food-tbody'), 15000);
-    } else {
-        setInterval(() => refreshTbody('order-food-tbody'), 5000);
-    }
-}
 
-document.addEventListener('DOMContentLoaded', function() {
-    initCancelModal();
-    startRealtimeOrders();
-});
+    document.addEventListener('DOMContentLoaded', function() {
+        initCancelModal();
+        startRealtimeOrders();
+    });
 </script>
 {% endblock %}

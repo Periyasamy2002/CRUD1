@@ -13,7 +13,7 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('signup/', views.signup_view, name='signup'),
     path('logout/', views.logout_view, name='logout'),
-    path('adminmanage/', views.admin_manage, name='admin_manage'),
+    # path('adminmanage/', views.admin_manage, name='admin_manage'),
 
     # ----------- Admin Routes -----------
     path('admin2/', views.admin2_login, name='admin2_login'),
@@ -57,6 +57,7 @@ urlpatterns = [
     path('api/search_menu_items/', views.search_menu_items_api, name='search_menu_items_api'),
     path('api/dashboard/metrics/', views.dashboard_metrics, name='dashboard_metrics'),
     path('api/dashboard/data/', views.dashboard_data, name='dashboard_data'),
+    path('api/orders/<int:order_id>/status/', views.api_update_order_status, name='api_update_order_status'),
 
     # --- Dashboard ---
     path('dashboard/', views.dashboard, name='dashboard'),

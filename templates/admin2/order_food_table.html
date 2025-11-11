@@ -1,0 +1,24 @@
+<!-- Add this to your existing table body row, inside each <tr> for an order -->
+
+<td class="order-actions">
+    <button class="order-status-btn" data-order-id="{{ order.id }}" data-action="accept" title="Accept order">
+        ✓ Accept
+    </button>
+    <button class="order-status-btn" data-order-id="{{ order.id }}" data-action="making" title="Preparing order">
+        👨‍🍳 Making
+    </button>
+    <button class="order-status-btn" data-order-id="{{ order.id }}" data-action="collect" title="Ready for pickup">
+        📦 Collect
+    </button>
+    <button class="order-status-btn" data-order-id="{{ order.id }}" data-action="delivered" title="Order delivered">
+        🚚 Delivered
+    </button>
+    <button class="order-status-btn cancel" data-order-id="{{ order.id }}" data-action="cancel" title="Cancel order" style="background: #dc3545;">
+        ✕ Cancel
+    </button>
+</td>
+
+{# Include at the end of your template, once per page #}
+<link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="{% static 'js/order_status.js' %}"></script>

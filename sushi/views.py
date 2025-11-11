@@ -13,6 +13,8 @@ import json
 from django.urls import reverse
 from django.conf import settings
 import logging
+import os
+import requests
 
 from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
 from .forms import MenuItemForm, SpecialMenuForm
@@ -566,52 +568,104 @@ def order_action(request, order_id):
         order.save()
     return redirect('order_details')
 
+
+
 @login_required
 def order_action_admin(request, order_id):
     if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
         return redirect('admin2_login')
 
     order = get_object_or_404(Order, id=order_id)
 
     if request.method == 'POST':
         action = request.POST.get('action')
+        reason = request.POST.get('reason', '')
+        
+        # Prepare order details for email
+        order_details = f"""
+Order ID: #{order.id}
+Item: {order.item}
+Quantity: {order.qty}
+Price per item: {order.price} CHF
+Total Price: {order.total_price} CHF
+Delivery: {order.delivery}
+Address: {order.address}
+Mobile: {order.mobile}
+"""
         
         if action == 'accept':
             order.status = 'Accepted'
             order.save()
+            send_mail(
+                'Order Accepted',
+                f'Your order has been accepted. Next, we will prepare your items.\n\n{order_details}',
+                settings.DEFAULT_FROM_EMAIL,
+                [order.email],
+                fail_silently=True,
+            )
         elif action == 'making':
             order.status = 'Making'
             order.save()
+            send_mail(
+                'Order Being Prepared',
+                f'We are now preparing your order. Please wait while we make it ready.\n\n{order_details}',
+                settings.DEFAULT_FROM_EMAIL,
+                [order.email],
+                fail_silently=True,
+            )
         elif action == 'collect':
             order.status = 'Ready to Collect'
             order.save()
+            send_mail(
+                'Order Ready to Collect',
+                f'Your order is ready. Please collect your order from our shop.\n\n{order_details}',
+                settings.DEFAULT_FROM_EMAIL,
+                [order.email],
+                fail_silently=True,
+            )
         elif action == 'delivered':
             order.status = 'Delivered'
             order.save()
-        elif action == 'cancel':
-            reason = request.POST.get('reason')
-            order.status = 'Cancelled'
-            order.cancellation_reason = reason
-            order.save()
-            # Robust AJAX detection: allow either header key variant
-            is_ajax = (
-                request.headers.get('x-requested-with') == 'XMLHttpRequest' or
-                request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            send_mail(
+                'Order Delivered',
+                f'Your order has been delivered successfully. Thank you for shopping with us!\n\n{order_details}\n\n Thank you for choosing our service!',
+                settings.DEFAULT_FROM_EMAIL,
+                [order.email],
+                fail_silently=True,
             )
-            if is_ajax:
-                return JsonResponse({'status': 'success', 'reason': reason})
-            return redirect('order_food_table')
-
-    # If not POST or unknown action, respond for AJAX
-    is_ajax_req = (
-        request.headers.get('x-requested-with') == 'XMLHttpRequest' or
-        request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
-    )
-    if is_ajax_req:
-        return JsonResponse({'status': 'error', 'message': 'Invalid request method or action'}, status=400)
+        elif action == 'cancel':
+            order.status = 'Cancelled'
+            order.save()
+            cancel_msg = f'Reason: {reason}\n\n' if reason else ''
+            send_mail(
+                'Order Cancelled',
+                f'Your order has been cancelled as per your request.\n\n{cancel_msg}{order_details}',
+                settings.DEFAULT_FROM_EMAIL,
+                [order.email],
+                fail_silently=True,
+            )
         
+        # Get updated pending count
+        pending_count = Order.objects.filter(status__in=['Accepted', 'Making']).count()
+        
+        # Return JSON for AJAX requests
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Order {action}ed successfully',
+                'new_status': order.status,
+                'pending_count': pending_count,
+            })
+        
+        # Redirect for non-AJAX requests
+        messages.success(request, f'Order {action}ed successfully')
+        return redirect('order_food_table')
+    
+    # Non-POST request
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
     return redirect('order_food_table')
 
 @login_required
@@ -1178,3 +1232,118 @@ def admin_dashboard(request):
     }
     
     return render(request, 'admin2/adminmanage.html', context)
+
+@csrf_exempt
+def api_update_order_status(request, order_id):
+    """
+    POST API to update order status, send Gmail email, and push FCM notification.
+    Expects POST with 'action' in: accept | making | collect | delivered | cancel
+    Optional 'reason' when action == 'cancel'
+    Returns JSON: { success, status, email_sent, fcm_sent }
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+
+    # Only staff or management allowed
+    if not (request.user.is_authenticated and (request.user.is_staff or getattr(request.user, 'user_type', None) == 'management')):
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+
+    # Support JSON body or form-data
+    try:
+        payload = {}
+        if request.content_type == 'application/json' and request.body:
+            payload = json.loads(request.body.decode('utf-8') or '{}')
+        else:
+            payload = request.POST.dict()
+    except Exception:
+        payload = request.POST.dict()
+
+    action = (payload.get('action') or '').lower()
+    if not action:
+        return JsonResponse({'success': False, 'error': 'Missing action.'}, status=400)
+
+    mapping = {
+        'accept': 'Accepted',
+        'making': 'Making',
+        'collect': 'Ready to Collect',
+        'delivered': 'Delivered',
+        'cancel': 'Cancelled'
+    }
+    if action not in mapping:
+        return JsonResponse({'success': False, 'error': 'Unknown action.'}, status=400)
+
+    order = get_object_or_404(Order, pk=order_id)
+    order.status = mapping[action]
+    if action == 'cancel':
+        order.cancellation_reason = payload.get('reason', '')
+    order.save()
+
+    # 1) Send email via Django send_mail (Gmail SMTP configured in settings.py)
+    email_sent = False
+    try:
+        subject = f'Order #{order.id} Status: {order.status}'
+        message_body = f"""
+Hello,
+
+Your order #{order.id} for "{order.item}" (Qty: {order.qty}) is now: {order.status}
+
+Order Details:
+- Item: {order.item}
+- Price: ${order.price}
+- Quantity: {order.qty}
+- Delivery: {order.delivery}
+- Address: {order.address}
+
+If you have any questions, please contact us.
+
+Thanks for your order!
+        """.strip()
+        
+        send_mail(
+            subject=subject,
+            message=message_body,
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[order.email],
+            fail_silently=False
+        )
+        email_sent = True
+        logging.info(f"Email sent to {order.email} for order {order.id}")
+    except Exception as e:
+        logging.exception(f"Failed to send order status email to {order.email}: {str(e)}")
+
+    # 2) Send FCM push to topic "orders" (optional, requires FIREBASE_SERVER_KEY)
+    fcm_sent = False
+    fcm_key = getattr(settings, 'FIREBASE_SERVER_KEY', None)
+    if fcm_key:
+        try:
+            fcm_url = 'https://fcm.googleapis.com/fcm/send'
+            fcm_payload = {
+                "to": "/topics/orders",
+                "notification": {
+                    "title": f"Order #{order.id} - {order.status}",
+                    "body": f"Order for {order.item} is now {order.status}."
+                },
+                "data": {
+                    "order_id": str(order.id),
+                    "status": order.status,
+                    "item": order.item
+                }
+            }
+            headers = {
+                'Authorization': f'key={fcm_key}',
+                'Content-Type': 'application/json'
+            }
+            resp = requests.post(fcm_url, headers=headers, json=fcm_payload, timeout=10)
+            fcm_sent = resp.status_code == 200
+            if not fcm_sent:
+                logging.warning(f"FCM response: {resp.status_code} {resp.text}")
+        except Exception as e:
+            logging.exception(f"Failed to send FCM notification: {str(e)}")
+
+    return JsonResponse({
+        'success': True,
+        'status': order.status,
+        'email_sent': email_sent,
+        'fcm_sent': fcm_sent,
+        'message': f'Order {order.id} updated to {order.status}'
+    })
