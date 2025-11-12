@@ -77,6 +77,8 @@ urlpatterns = [
     # In urls.py
 path('admin/dashboard/', views.admin_dashboard, name='admin_dashboard'),
 path('api/dashboard/metrics/', views.dashboard_metrics, name='dashboard_metrics'),
+
+    path('send-order-emails/', views.send_order_emails, name='send_order_emails'),
 ]
 
 if settings.DEBUG:

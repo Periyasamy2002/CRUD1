@@ -12,6 +12,8 @@
                 <th class="px-4 py-2 border">Qty</th>
                 <th class="px-4 py-2 border">Price</th>
                 <th class="px-4 py-2 border">Total Price</th>
+                <th class="px-4 py-2 border">Date</th>
+                <th class="px-4 py-2 border">Time</th>
                 <th class="px-4 py-2 border">Status</th>
                 <th class="px-4 py-2 border">Actions</th>
             </tr>
@@ -21,7 +23,7 @@
             {% for group in order_groups %}
                 <!-- Group header: shows email, item count and "One-time Order" label -->
                 <tr class="bg-gray-100">
-                    <td class="px-4 py-2 border font-semibold" colspan="7">
+                    <td class="px-4 py-2 border font-semibold" colspan="9">
                         <div class="flex items-center justify-between">
                             <div>
                                 <span class="mr-2">Email:</span>
@@ -41,6 +43,8 @@
                     <td class="px-4 py-2 border">{{ order.qty }}</td>
                     <td class="px-4 py-2 border">{{ order.price|floatformat:2 }} CHF</td>
                     <td class="px-4 py-2 border">{{ order.total_price|floatformat:2 }} CHF</td>
+                    <td class="px-4 py-2 border">{{ order.created_at|date:"Y-m-d" }}</td>
+                    <td class="px-4 py-2 border">{{ order.created_at|time:"H:i:s" }}</td>
                     <td id="status-{{ order.id }}" class="px-4 py-2 border {% if order.status == 'Accepted' %}bg-green-100{% elif order.status == 'Making' %}bg-yellow-100{% elif order.status == 'Ready to Collect' %}bg-blue-100{% elif order.status == 'Delivered' %}bg-purple-100{% elif order.status == 'Cancelled' %}bg-red-100{% endif %}">
                         {{ order.status }}
                     </td>
@@ -98,6 +102,23 @@
         positionClass: "toast-top-right",
     };
 
+    // helper to read csrftoken cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const CSRFTOKEN = getCookie('csrftoken');
+
     // Handle form submissions
     document.querySelectorAll('.order-action-form').forEach(form => {
         form.addEventListener('submit', async function(e) {
@@ -111,8 +132,10 @@
                 const response = await fetch(this.action, {
                     method: 'POST',
                     body: formData,
+                    credentials: 'same-origin',
                     headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': CSRFTOKEN
                     }
                 });
                 
@@ -195,24 +218,43 @@
             freshTextarea.value = '';
         });
 
-        freshConfirm.addEventListener('click', function() {
-            if (activeForm) {
-                const reasonInput = activeForm.querySelector('.cancel-reason-input');
-                if (reasonInput) {
-                    reasonInput.value = freshTextarea.value;
-                }
-                // Ensure the form submits its action value when submitted programmatically:
-                // create or set a hidden input named "action" with value "cancel"
-                let actionHidden = activeForm.querySelector('input[name="action"][type="hidden"]');
-                if (!actionHidden) {
-                    actionHidden = document.createElement('input');
-                    actionHidden.type = 'hidden';
-                    actionHidden.name = 'action';
-                    activeForm.appendChild(actionHidden);
-                }
-                actionHidden.value = 'cancel';
+        // Use AJAX for confirm so CSRF header is included
+        freshConfirm.addEventListener('click', async function() {
+            if (!activeForm) return;
+            const url = activeForm.action;
+            const fd = new FormData(activeForm);
+            fd.set('action', 'cancel');
+            fd.set('reason', freshTextarea.value || '');
 
-                activeForm.submit();
+            try {
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    body: fd,
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': CSRFTOKEN
+                    }
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    toastr.success(data.message);
+                    const orderId = activeForm.dataset.orderId;
+                    const statusCell = document.getElementById(`status-${orderId}`);
+                    if (statusCell) {
+                        statusCell.textContent = data.new_status;
+                        updateStatusColor(statusCell, data.new_status);
+                    }
+                    if (data.pending_count !== undefined) updateOrderBadge(data.pending_count);
+                    refreshTbody('order-food-tbody');
+                    freshModal.style.display = 'none';
+                    freshTextarea.value = '';
+                } else {
+                    toastr.error(data.message || 'Cancellation failed');
+                }
+            } catch (err) {
+                console.error('Cancel request failed', err);
+                toastr.error('Failed to cancel the order');
             }
         });
 

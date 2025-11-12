@@ -183,7 +183,7 @@
                 <div class="flex justify-between mt-8">
                     <button @click="step = 2" class="text-gray-600 font-semibold hover:underline">‹ Edit Details</button>
                     <button @click="submitOrder()" :disabled="loading" class="bg-green-600 text-white px-6 py-2 rounded-lg shadow hover:bg-green-700 disabled:bg-gray-400 flex items-center">
-                        <span x-show="!loading">Confirm Your Order</span>
+                        <span x-show="!loading">Confirm & Pay</span>
                         <span x-show="loading">
                             <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -199,7 +199,7 @@
             <div x-show="step === 4" class="text-center py-12">
                 <svg class="w-16 h-16 text-green-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">Order Successful!</h2>
-                <p class="text-gray-600">Thank you for your order. A confirmation has been sent to the manager.</p>
+                <p class="text-gray-600">Thank you for your order <!-- . A confirmation has been sent to <strong x-text="email"></strong>. --></p>
                
                 <!-- allow user to review cart (which is cleared) or go back to menu -->
                 <div class="mt-8 flex items-center justify-center gap-4">
@@ -210,6 +210,49 @@
         </div>
     </div>
 </div>
+
+<!-- Ensure AJAX requests include CSRF and credentials -->
+<script>
+	// helper to read csrftoken cookie
+	function getCookie(name) {
+		let cookieValue = null;
+		if (document.cookie && document.cookie !== '') {
+			const cookies = document.cookie.split(';');
+			for (let i = 0; i < cookies.length; i++) {
+				const cookie = cookies[i].trim();
+				if (cookie.substring(0, name.length + 1) === (name + '=')) {
+					cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+					break;
+				}
+			}
+		}
+		return cookieValue;
+	}
+	const CSRFTOKEN = getCookie('csrftoken');
+
+	// Example: ensure forms that perform AJAX post use CSRF and credentials
+	document.querySelectorAll('.cart-action-form').forEach(form => {
+		form.addEventListener('submit', async function(e) {
+			e.preventDefault();
+			const url = this.action;
+			const fd = new FormData(this);
+			try {
+				const resp = await fetch(url, {
+					method: 'POST',
+					body: fd,
+					credentials: 'same-origin',
+					headers: {
+						'X-Requested-With': 'XMLHttpRequest',
+						'X-CSRFToken': CSRFTOKEN
+					}
+				});
+				// handle response (JSON or redirect)...
+			} catch (err) {
+				console.error('Cart action failed', err);
+			}
+		});
+	});
+</script>
 
 <script>
 function cartPage() {
@@ -325,6 +368,16 @@ function cartPage() {
             this.loading = true;
             this.error = '';
 
+            // capture current cart/details now (before clearing)
+            const currentCart = JSON.parse(JSON.stringify(this.cart));
+            const currentEmail = this.email;
+            const currentMobile = this.mobile;
+            const currentAddress = this.address;
+            const currentDelivery = this.delivery;
+            const currentOrderType = this.orderType;
+            const currentOrderDate = this.orderDate;
+            const currentOrderTime = this.orderTime;
+
             fetch("{% url 'order_submit' %}", {
                 method: 'POST',
                 headers: {
@@ -332,32 +385,119 @@ function cartPage() {
                     'X-CSRFToken': '{{ csrf_token }}'
                 },
                 body: JSON.stringify({
-                    cart: this.cart,
-                    orderType: this.orderType,
-                    orderDate: this.orderDate,
-                    orderTime: this.orderTime,
-                    email: this.email,
-                    mobile: this.mobile,
-                    address: this.address,
-                    delivery: this.delivery
+                    cart: currentCart,
+                    orderType: currentOrderType,
+                    orderDate: currentOrderDate,
+                    orderTime: currentOrderTime,
+                    email: currentEmail,
+                    mobile: currentMobile,
+                    address: currentAddress,
+                    delivery: currentDelivery
                 })
             })
             .then(res => res.json())
             .then(data => {
                 this.loading = false;
-                if (data.success) {
+
+                // Build email body from captured details
+                let bodyLines = [];
+                bodyLines.push('New order received');
+                bodyLines.push('');
+                bodyLines.push('Customer details:');
+                bodyLines.push('Email: ' + (currentEmail || 'N/A'));
+                bodyLines.push('Mobile: ' + (currentMobile || 'N/A'));
+                bodyLines.push('Address: ' + (currentAddress || 'N/A'));
+                bodyLines.push('Delivery: ' + (currentDelivery || 'N/A'));
+                bodyLines.push('Order time: ' + (currentOrderType === 'now' ? 'Now' : ('Scheduled: ' + currentOrderDate + ' ' + currentOrderTime)));
+                bodyLines.push('');
+                bodyLines.push('Items:');
+
+                let subtotal = 0;
+                currentCart.forEach(item => {
+                    const lineTotal = (item.price * item.qty);
+                    subtotal += lineTotal;
+                    bodyLines.push(`${item.qty} x ${item.name} — ${lineTotal.toFixed(2)} CHF (unit ${item.price.toFixed(2)} CHF)`);
+                });
+
+                const deliveryFee = currentDelivery === 'Livraison Express 3.5km' ? 5 : 0;
+                const total = subtotal + deliveryFee;
+
+                bodyLines.push('');
+                bodyLines.push('Subtotal: ' + subtotal.toFixed(2) + ' CHF');
+                if (deliveryFee > 0) bodyLines.push('Delivery fee: ' + deliveryFee.toFixed(2) + ' CHF');
+                bodyLines.push('Total: ' + total.toFixed(2) + ' CHF');
+                bodyLines.push('');
+
+                if (data && data.success) {
+                    bodyLines.push('Order status: Submitted successfully.');
+                    if (data.order_id) bodyLines.push('Order ID: ' + data.order_id);
+                } else {
+                    bodyLines.push('Order status: FAILED to submit to server.');
+                    if (data && data.error) bodyLines.push('Server error: ' + data.error);
+                }
+
+                const bodyString = bodyLines.join('\r\n');
+                const subject = 'New Order from ' + (currentEmail || 'Guest');
+                const mailto = 'mailto:saranvignesh55@gmail.com'
+                    + '?subject=' + encodeURIComponent(subject)
+                    + '&body=' + encodeURIComponent(bodyString);
+
+                // Open user's mail client with prefilled email to manager
+                window.location.href = mailto;
+
+                if (data && data.success) {
                     // clear component cart then persist empty global cart
                     this.cart = [];
                     this.updateGlobalCart(); // writes empty cart to window.globalCart and localStorage
                     this.clearDetails();
                     this.step = 4;
                 } else {
-                    this.error = data.error || 'An unknown error occurred.';
-                    this.step = 3; // Stay on summary page to show error
+                    // show error on summary page
+                    this.error = (data && data.error) ? data.error : 'An unknown error occurred.';
+                    this.step = 3;
                 }
             })
             .catch(err => {
                 this.loading = false;
+
+                // Build and send email with failure note so manager still receives order details
+                let bodyLines = [];
+                bodyLines.push('New order attempted BUT failed to submit to server (client-side error).');
+                bodyLines.push('');
+                bodyLines.push('Customer details:');
+                bodyLines.push('Email: ' + (this.email || 'N/A'));
+                bodyLines.push('Mobile: ' + (this.mobile || 'N/A'));
+                bodyLines.push('Address: ' + (this.address || 'N/A'));
+                bodyLines.push('Delivery: ' + (this.delivery || 'N/A'));
+                bodyLines.push('Order time: ' + (this.orderType === 'now' ? 'Now' : ('Scheduled: ' + this.orderDate + ' ' + this.orderTime)));
+                bodyLines.push('');
+                bodyLines.push('Items:');
+
+                let subtotal = 0;
+                this.cart.forEach(item => {
+                    const lineTotal = (item.price * item.qty);
+                    subtotal += lineTotal;
+                    bodyLines.push(`${item.qty} x ${item.name} — ${lineTotal.toFixed(2)} CHF (unit ${item.price.toFixed(2)} CHF)`);
+                });
+
+                const deliveryFee = this.delivery === 'Livraison Express 3.5km' ? 5 : 0;
+                const total = subtotal + deliveryFee;
+
+                bodyLines.push('');
+                bodyLines.push('Subtotal: ' + subtotal.toFixed(2) + ' CHF');
+                if (deliveryFee > 0) bodyLines.push('Delivery fee: ' + deliveryFee.toFixed(2) + ' CHF');
+                bodyLines.push('Total: ' + total.toFixed(2) + ' CHF');
+                bodyLines.push('');
+                bodyLines.push('Client error message: ' + (err && err.message ? err.message : String(err)));
+
+                const bodyString = bodyLines.join('\r\n');
+                const subject = 'New Order (FAILED SUBMIT) from ' + (this.email || 'Guest');
+                const mailto = 'mailto:saranvignesh55@gmail.com'
+                    + '?subject=' + encodeURIComponent(subject)
+                    + '&body=' + encodeURIComponent(bodyString);
+
+                window.location.href = mailto;
+
                 this.error = 'Could not connect to the server. Please try again later.';
                 this.step = 3;
             });
