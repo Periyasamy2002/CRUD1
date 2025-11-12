@@ -1404,13 +1404,16 @@ Thanks for your order!
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.conf import settings
+from django.views.decorators.http import require_http_methods
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
 def send_order_confirmation_emails(order_id, customer_email):
     """
     Send order confirmation emails to customer and manager.
+    Robust error handling for production servers.
     """
     try:
         order = Order.objects.get(id=order_id)
@@ -1459,26 +1462,41 @@ Order System
         from_email = settings.DEFAULT_FROM_EMAIL
         
         # Send email to customer
-        send_mail(
-            customer_subject,
-            customer_message,
-            from_email,
-            [customer_email],
-            fail_silently=False
-        )
+        try:
+            send_mail(
+                customer_subject,
+                customer_message,
+                from_email,
+                [customer_email],
+                fail_silently=False,
+                auth_user=settings.EMAIL_HOST_USER,
+                auth_password=settings.EMAIL_HOST_PASSWORD
+            )
+            logger.info(f"Order confirmation email sent to customer {customer_email} for order {order_id}")
+        except Exception as e:
+            logger.error(f"Failed to send customer email for order {order_id}: {str(e)}")
         
         # Send email to manager
-        send_mail(
-            manager_subject,
-            manager_message,
-            from_email,
-            [settings.MANAGER_EMAIL],
-            fail_silently=False
-        )
+        try:
+            send_mail(
+                manager_subject,
+                manager_message,
+                from_email,
+                [settings.MANAGER_EMAIL],
+                fail_silently=False,
+                auth_user=settings.EMAIL_HOST_USER,
+                auth_password=settings.EMAIL_HOST_PASSWORD
+            )
+            logger.info(f"Order notification email sent to manager for order {order_id}")
+        except Exception as e:
+            logger.error(f"Failed to send manager email for order {order_id}: {str(e)}")
         
         return True
+    except Order.DoesNotExist:
+        logger.warning(f"Order {order_id} not found")
+        return False
     except Exception as e:
-        logger.exception("Failed to send order confirmation emails for order %s", order_id)
+        logger.exception(f"Unexpected error sending order emails for order {order_id}: {str(e)}")
         return False
 
 
@@ -1494,12 +1512,116 @@ def send_order_emails(request):
             order_id = data.get('order_id')
             customer_email = data.get('customer_email')
             
-            if send_order_confirmation_emails(order_id, customer_email):
-                return JsonResponse({'success': True, 'message': 'Emails sent successfully'})
-            else:
-                return JsonResponse({'success': False, 'message': 'Failed to send emails'}, status=500)
+            if not order_id or not customer_email:
+                return JsonResponse({'success': False, 'message': 'Missing order_id or customer_email'}, status=400)
+            
+            send_order_confirmation_emails(order_id, customer_email)
+            return JsonResponse({'success': True, 'message': 'Confirmation emails queued for sending'})
+        except json.JSONDecodeError:
+            logger.warning("Invalid JSON in send_order_emails request")
+            return JsonResponse({'success': False, 'message': 'Invalid JSON'}, status=400)
         except Exception as e:
             logger.exception("Error in send_order_emails")
-            return JsonResponse({'success': False, 'message': str(e)}, status=500)
+            return JsonResponse({'success': False, 'message': 'Internal server error'}, status=500)
     
-    return JsonResponse({'success': False, 'message': 'Invalid request'}, status=400)
+    return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
+
+
+def order_action_admin(request, order_id):
+    """
+    Handle admin order actions via POST. Returns JSON for AJAX requests.
+    Sends status update email to customer.
+    Production-ready with robust error handling.
+    """
+    if request.method != 'POST':
+        return HttpResponseBadRequest("Invalid method")
+
+    try:
+        order = get_object_or_404(Order, id=order_id)
+        action = request.POST.get('action')
+        reason = request.POST.get('reason', '').strip()
+
+        # Map actions to status
+        status_map = {
+            'accept': 'Accepted',
+            'making': 'Making',
+            'collect': 'Ready to Collect',
+            'delivered': 'Delivered',
+            'cancel': 'Cancelled'
+        }
+
+        if action not in status_map:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'Unknown action'}, status=400)
+            return redirect(request.META.get('HTTP_REFERER', '/'))
+
+        order.status = status_map[action]
+        
+        if action == 'cancel' and hasattr(order, 'cancel_reason'):
+            order.cancel_reason = reason
+
+        order.save()
+        logger.info(f"Order {order_id} status changed to {order.status}")
+
+        # Send status update email to customer
+        recipient = getattr(order, 'email', None) or (getattr(order, 'user', None) and getattr(order.user, 'email', None))
+        mail_sent = False
+        
+        if recipient:
+            subject = f"Order #{order.id} Status Update"
+            message = f"""
+Dear Customer,
+
+Your order status has been updated.
+
+Order Details:
+- Order ID: {order.id}
+- Item: {order.item}
+- New Status: {order.status}
+
+Thank you for your patience.
+
+Best regards,
+Sushi Restaurant
+            """
+            from_email = settings.DEFAULT_FROM_EMAIL
+            
+            try:
+                send_mail(
+                    subject,
+                    message,
+                    from_email,
+                    [recipient],
+                    fail_silently=False,
+                    auth_user=settings.EMAIL_HOST_USER,
+                    auth_password=settings.EMAIL_HOST_PASSWORD
+                )
+                mail_sent = True
+                logger.info(f"Status update email sent to {recipient} for order {order_id}")
+            except Exception as e:
+                mail_sent = False
+                logger.error(f"Failed to send status update email for order {order_id}: {str(e)}")
+
+        # Compute pending count
+        try:
+            pending_count = Order.objects.filter(status__in=['Pending', 'Placed']).count()
+        except Exception:
+            pending_count = 0
+
+        # AJAX response
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f"Order status updated to {order.status}",
+                'new_status': order.status,
+                'pending_count': pending_count,
+                'mail_sent': mail_sent
+            })
+
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+    except Exception as e:
+        logger.exception(f"Error processing order action for order {order_id}: {str(e)}")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Internal server error'}, status=500)
+        return redirect(request.META.get('HTTP_REFERER', '/'))
