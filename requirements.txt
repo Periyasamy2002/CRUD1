@@ -16,3 +16,6 @@ channels
 channels_redis
 firebase-admin==6.2.0
 django-environ==0.11.2
+dotenv==1.0.0
+
+
