@@ -27,14 +27,14 @@ SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-default-key")
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 
 # ALLOWED_HOSTS: prefer env var (comma-separated). Always include your production domain.
-_allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "").strip()
-if _allowed_hosts_env:
-    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
-elif DEBUG:
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
-else:
+# _allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "").strip()
+# if _allowed_hosts_env:
+#     ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+# elif DEBUG:
+#     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# else:
     # Production fallback: include your domain(s).
-    ALLOWED_HOSTS = ["www.sushi4123.eu", "sushi4123.eu", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = ["www.sushi4123.eu", "sushi4123.eu", "127.0.0.1", "localhost"]
 
 
 # Application definition
