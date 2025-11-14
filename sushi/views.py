@@ -589,6 +589,7 @@ def order_submit(request):
                 ['saranvignesh55@gmail.com'],
                 fail_silently=False,
             )
+            
         except Exception as e:
             # Log the error but don't fail the request
             logging.error(f"Failed to send order confirmation email: {e}")
@@ -606,38 +607,62 @@ def order_submit(request):
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
         messages.error(request, f'Failed to place order: {e}')
         return redirect('cart_page')
+    
+    
+    
+import logging
+from django.http import JsonResponse
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from .models import Order
+
+
+
+
 
 @login_required
 def order_action(request, order_id):
-    order = get_object_or_404(Order, id=order_id, email=request.user.email)
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        if action == 'get':
-            order.status = 'got'
-        elif action == 'out':
-            order.status = 'out'
-        elif action == 'cancel':
-            order.status = 'cancelled'
-        order.save()
-    return redirect('order_details')
+    try:
+        order = get_object_or_404(Order, id=order_id, email=request.user.email)
 
+        if request.method == 'POST':
+            action = request.POST.get('action')
 
+            if action == 'get':
+                order.status = 'got'
+            elif action == 'out':
+                order.status = 'out'
+            elif action == 'cancel':
+                order.status = 'cancelled'
+
+            order.save()
+
+        return redirect('order_details')
+
+    except Exception as e:
+        logging.exception("Error in order_action")
+        return redirect('order_details')
 
 @login_required
 def order_action_admin(request, order_id):
-    if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
-        return redirect('admin2_login')
+    try:
+        # Permission check
+        if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
+            return redirect('admin2_login')
 
-    order = get_object_or_404(Order, id=order_id)
+        order = get_object_or_404(Order, id=order_id)
 
-    if request.method == 'POST':
-        action = request.POST.get('action')
-        reason = request.POST.get('reason', '')
-        
-        # Prepare order details for email
-        order_details = f"""
+        if request.method == 'POST':
+            action = request.POST.get('action')
+            reason = request.POST.get('reason', '')
+
+            # Email body
+            order_details = f"""
 Order ID: #{order.id}
 Item: {order.item}
 Quantity: {order.qty}
@@ -647,79 +672,94 @@ Delivery: {order.delivery}
 Address: {order.address}
 Mobile: {order.mobile}
 """
-        
-        if action == 'accept':
-            order.status = 'Accepted'
-            order.save()
-            send_mail(
-                'Order Accepted',
-                f'Your order has been accepted. Next, we will prepare your items.\n\n{order_details}',
-                settings.DEFAULT_FROM_EMAIL,
-                [order.email],
-                fail_silently=True,
-            )
-        elif action == 'making':
-            order.status = 'Making'
-            order.save()
-            send_mail(
-                'Order Being Prepared',
-                f'We are now preparing your order. Please wait while we make it ready.\n\n{order_details}',
-                settings.DEFAULT_FROM_EMAIL,
-                [order.email],
-                fail_silently=True,
-            )
-        elif action == 'collect':
-            order.status = 'Ready to Collect'
-            order.save()
-            send_mail(
-                'Order Ready to Collect',
-                f'Your order is ready. Please collect your order from our shop.\n\n{order_details}',
-                settings.DEFAULT_FROM_EMAIL,
-                [order.email],
-                fail_silently=True,
-            )
-        elif action == 'delivered':
-            order.status = 'Delivered'
-            order.save()
-            send_mail(
-                'Order Delivered',
-                f'Your order has been delivered successfully. Thank you for shopping with us!\n\n{order_details}\n\n Thank you for choosing our service!',
-                settings.DEFAULT_FROM_EMAIL,
-                [order.email],
-                fail_silently=True,
-            )
-        elif action == 'cancel':
-            order.status = 'Cancelled'
-            order.save()
-            cancel_msg = f'Reason: {reason}\n\n' if reason else ''
-            send_mail(
-                'Order Cancelled',
-                f'Your order has been cancelled as per your request.\n\n{cancel_msg}{order_details}',
-                settings.DEFAULT_FROM_EMAIL,
-                [order.email],
-                fail_silently=True,
-            )
-        
-        # Get updated pending count
-        pending_count = Order.objects.filter(status__in=['Accepted', 'Making']).count()
-        
-        # Return JSON for AJAX requests
+
+            # ---- Actions ----
+            try:
+                if action == 'accept':
+                    order.status = 'Accepted'
+                    send_mail(
+                        'Order Accepted',
+                        f'Your order has been accepted.\n\n{order_details}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [order.email],
+                        fail_silently=True,
+                    )
+
+                elif action == 'making':
+                    order.status = 'Making'
+                    send_mail(
+                        'Order Being Prepared',
+                        f'We are preparing your order.\n\n{order_details}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [order.email],
+                        fail_silently=True,
+                    )
+
+                elif action == 'collect':
+                    order.status = 'Ready to Collect'
+                    send_mail(
+                        'Order Ready to Collect',
+                        f'Your order is ready for pickup.\n\n{order_details}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [order.email],
+                        fail_silently=True,
+                    )
+
+                elif action == 'delivered':
+                    order.status = 'Delivered'
+                    send_mail(
+                        'Order Delivered',
+                        f'Your order has been delivered.\n\n{order_details}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [order.email],
+                        fail_silently=True,
+                    )
+
+                elif action == 'cancel':
+                    order.status = 'Cancelled'
+                    cancel_msg = f"Reason: {reason}\n\n" if reason else ""
+                    send_mail(
+                        'Order Cancelled',
+                        f'Your order is cancelled.\n\n{cancel_msg}{order_details}',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [order.email],
+                        fail_silently=True,
+                    )
+
+                order.save()
+
+            except Exception as mail_error:
+                logging.exception(f"Mail send failed: {mail_error}")
+
+            # Updated pending count
+            pending_count = Order.objects.filter(status__in=['Accepted', 'Making']).count()
+
+            # AJAX response
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Order {action}ed successfully',
+                    'new_status': order.status,
+                    'pending_count': pending_count,
+                })
+
+            messages.success(request, f'Order {action}ed successfully')
+            return redirect('order_food_table')
+
+        # Invalid method
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f'Order {action}ed successfully',
-                'new_status': order.status,
-                'pending_count': pending_count,
-            })
-        
-        # Redirect for non-AJAX requests
-        messages.success(request, f'Order {action}ed successfully')
+            return JsonResponse({'success': False, 'message': 'Invalid method'}, status=405)
+
         return redirect('order_food_table')
-    
-    # Non-POST request
-    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
-    return redirect('order_food_table')
+
+    except Exception as e:
+        logging.exception("Error in order_action_admin")
+
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': 'Server error'}, status=500)
+
+        messages.error(request, "Something went wrong.")
+        return redirect('order_food_table')
 
 @login_required
 def order_history(request):
