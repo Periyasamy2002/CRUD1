@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,12 +21,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-16j1_2t+39o%0_o!@44wcu=fz_^14+9_)b^nd$xij&*_$*i4xx'
+SECRET_KEY = os.getenv("SECRET_KEY", "unsafe-default-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 
-ALLOWED_HOSTS = []
+# ALLOWED_HOSTS: prefer env var (comma-separated). Always include your production domain.
+_allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "").strip()
+if _allowed_hosts_env:
+    ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()]
+elif DEBUG:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+else:
+    # Production fallback: include your domain(s).
+    ALLOWED_HOSTS = ["www.sushi4123.eu", "sushi4123.eu", "127.0.0.1", "localhost"]
 
 
 # Application definition
