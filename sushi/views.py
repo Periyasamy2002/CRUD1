@@ -593,23 +593,43 @@ def order_submit(request):
             total_price = price * qty
             order_details_str = f"  - {name} (x{qty}): {total_price:.2f} CHF\n"
 
+
         message = f"""
-        A new order has been placed.
+        <div class="container">
+        <h2>New Order Received</h2>
 
-        Customer Details:
-          Email: {email}
-          Mobile: {data.get('mobile') or data.get('phone') or ''}
-          Address: {data.get('address') or ''}
+        <p>A new order has been placed.</p>
 
-        Order Details:
-        {order_details_str}
-        Total Price: {total_price:.2f} CHF
+        <div class="section-title">Customer Details:</div>
+        <div class="details">
+            <p><strong>Email:</strong> {email}</p>
+            <p><strong>Mobile:</strong> {data.get('mobile') or data.get('phone') or ''}</p>
+            <p><strong>Address:</strong> {data.get('address') or ''}</p>
+        </div>
 
-        Delivery Method: {data.get('delivery') or ''}
-        Order Type: {data.get('orderType') or data.get('order_type') or 'now'}
+        <div class="section-title">Order Details:</div>
+        <div class="order-box">
+            {order_details_str}
+        </div>
+
+        <p><strong>Total Price:</strong> {total_price:.2f} CHF</p>
+
+        <div class="details">
+            <p><strong>Delivery Method:</strong> {data.get('delivery') or ''}</p>
+            <p><strong>Order Type:</strong> {data.get('orderType') or data.get('order_type') or 'now'}</p>
+        </div>
         """
+
+        # 🔥 ADD EXTRA INFO ONLY IF orderType == 'later'
         if (data.get('orderType') or data.get('order_type')) == 'later':
-            message += f"Scheduled for: {data.get('orderDate')} at {data.get('orderTime')}"
+            message += f"""
+            <p><strong>Scheduled for:</strong> {data.get('orderDate')} at {data.get('orderTime')}</p>
+            """
+
+        # close div
+        message += "</div>"
+
+                
 
         try:
             to = [{"email": "vshigamaru@gmail.com"}]
