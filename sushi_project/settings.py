@@ -27,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-16j1_2t+39o%0_o!@44wcu=fz_^14+9_)b^nd$xij&*_$*i4xx'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 # os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 
 # ALLOWED_HOSTS: prefer env var (comma-separated). Always include your production domain.
@@ -169,8 +169,9 @@ EMAIL_USE_TLS = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER',)
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD',)       # Gmail App Password (not your Gmail password)
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_TIMEOUT = 30
 
-EMAIL_TIMEOUT = 20
+
 # # Logging: console + file to help diagnose worker timeouts / view errors
 # LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
 # LOG_DIR = BASE_DIR / "logs"
