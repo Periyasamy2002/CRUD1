@@ -27,7 +27,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-16j1_2t+39o%0_o!@44wcu=fz_^14+9_)b^nd$xij&*_$*i4xx'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
+DEBUG = False
+# os.getenv("DEBUG", "True").lower() in ("1", "true", "yes")
 
 # ALLOWED_HOSTS: prefer env var (comma-separated). Always include your production domain.
 # _allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "").strip()
@@ -159,12 +160,17 @@ load_dotenv(BASE_DIR / '.env')
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+# EMAIL_PORT = 487
+# EMAIL_USE_TLS = True
+# EMAIL_USE_SSL = True
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER',)
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD',)       # Gmail App Password (not your Gmail password)
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+EMAIL_TIMEOUT = 20
 # # Logging: console + file to help diagnose worker timeouts / view errors
 # LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "INFO").upper()
 # LOG_DIR = BASE_DIR / "logs"
