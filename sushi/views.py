@@ -16,11 +16,41 @@ import logging
 import os
 import requests
 
+from django.http import HttpResponse
+from django.conf import settings
+import sib_api_v3_sdk
+from sib_api_v3_sdk.rest import ApiException
+
 from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
 from .forms import MenuItemForm, SpecialMenuForm
 from django.db.models import Q
 
 logger = logging.getLogger(__name__)
+
+def send_new_email(to,cc=[],bcc=[],subject="",content=""):
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY
+
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
+    )
+    sender = {"name": "SUSHI NARUTO MOMOS", "email": settings.DEFAULT_FROM_EMAIL}
+
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=to,
+        # cc=cc,
+        # bcc=bcc,
+        html_content=content,
+        sender=sender,
+        subject=subject,
+    )
+    api_response = api_instance.send_transac_email(send_smtp_email)
+    return True
+
+
+
+
+
 
 # ---------------- Public Views ----------------
 
@@ -582,13 +612,10 @@ def order_submit(request):
             message += f"Scheduled for: {data.get('orderDate')} at {data.get('orderTime')}"
 
         try:
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                ['saranvignesh55@gmail.com'],
-                fail_silently=False,
-            )
+            to = [{"email": "vshigamaru@gmail.com"}]
+            send_new_email(to,cc=[],bcc=[],subject=subject,content=message)
+                
+              
             
         except Exception as e:
             # Log the error but don't fail the request
@@ -1665,3 +1692,7 @@ Sushi Restaurant
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             return JsonResponse({'success': False, 'message': 'Internal server error'}, status=500)
         return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+
+
