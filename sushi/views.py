@@ -708,75 +708,95 @@ def order_action_admin(request, order_id):
             action = request.POST.get('action')
             reason = request.POST.get('reason', '')
 
-            # Email body
-            order_details = f"""
-Order ID: #{order.id}
-Item: {order.item}
-Quantity: {order.qty}
-Price per item: {order.price} CHF
-Total Price: {order.total_price} CHF
-Delivery: {order.delivery}
-Address: {order.address}
-Mobile: {order.mobile}
-"""
+            # ---------- Base HTML Template ----------
+            def build_html(body_title, extra_message=""):
+                return f"""
+                <div style="font-family: Arial, sans-serif; padding: 20px; background: #f8f8f8;">
+                
+                    <div style="background: white; padding: 20px; border-radius: 10px; max-width: 600px; margin: auto;">
+                        
+                        <h2 style="color: #d81b60; text-align:center;">{body_title}</h2>
 
-            # ---- Actions ----
-            try:
-                if action == 'accept':
-                    order.status = 'Accepted'
-                    send_mail(
-                        'Order Accepted',
-                        f'Your order has been accepted.\n\n{order_details}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [order.email],
-                        fail_silently=True,
-                    )
+                        <p>{extra_message}</p>
 
-                elif action == 'making':
-                    order.status = 'Making'
-                    send_mail(
-                        'Order Being Prepared',
-                        f'We are preparing your order.\n\n{order_details}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [order.email],
-                        fail_silently=True,
-                    )
+                        <h3 style="margin-top: 20px;">Order Details</h3>
 
-                elif action == 'collect':
-                    order.status = 'Ready to Collect'
-                    send_mail(
-                        'Order Ready to Collect',
-                        f'Your order is ready for pickup.\n\n{order_details}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [order.email],
-                        fail_silently=True,
-                    )
+                        <div style="border: 1px solid #ddd; padding: 15px; border-radius: 6px; background:#fafafa;">
+                            <p><strong>Order ID:</strong> #{order.id}</p>
+                            <p><strong>Item:</strong> {order.item}</p>
+                            <p><strong>Quantity:</strong> {order.qty}</p>
+                            <p><strong>Price per item:</strong> {order.price} CHF</p>
+                            <p><strong>Total Price:</strong> {order.total_price} CHF</p>
+                            <p><strong>Delivery:</strong> {order.delivery}</p>
+                            <p><strong>Address:</strong> {order.address}</p>
+                            <p><strong>Mobile:</strong> {order.mobile}</p>
+                        </div>
 
-                elif action == 'delivered':
-                    order.status = 'Delivered'
-                    send_mail(
-                        'Order Delivered',
-                        f'Your order has been delivered.\n\n{order_details}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [order.email],
-                        fail_silently=True,
-                    )
+                        <p style="margin-top: 25px;">
+                            Thank you for ordering with <strong>Sushi Naruto Momos</strong>.
+                        </p>
 
-                elif action == 'cancel':
-                    order.status = 'Cancelled'
-                    cancel_msg = f"Reason: {reason}\n\n" if reason else ""
-                    send_mail(
-                        'Order Cancelled',
-                        f'Your order is cancelled.\n\n{cancel_msg}{order_details}',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [order.email],
-                        fail_silently=True,
-                    )
+                    </div>
+                </div>
+                """
 
-                order.save()
+            # ---------- Subject + HTML Body ----------
+            if action == "accept":
+                subject = "Order Accepted"
+                html_body = build_html(
+                    "Your Order Has Been Accepted",
+                    "Good news! Your order has been accepted and will be prepared soon."
+                )
+                order.status = "Accepted"
 
-            except Exception as mail_error:
-                logging.exception(f"Mail send failed: {mail_error}")
+            elif action == "making":
+                subject = "Order Being Prepared"
+                html_body = build_html(
+                    "We Are Preparing Your Order",
+                    "Your order is currently being prepared by our chef."
+                )
+                order.status = "Making"
+
+            elif action == "collect":
+                subject = "Order Ready to Collect"
+                html_body = build_html(
+                    "Your Order is Ready for Pickup",
+                    "Please come to the restaurant to collect your order."
+                )
+                order.status = "Ready to Collect"
+
+            elif action == "delivered":
+                subject = "Order Delivered"
+                html_body = build_html(
+                    "Your Order Has Been Delivered",
+                    "Enjoy your meal! Thank you for choosing us."
+                )
+                order.status = "Delivered"
+
+            elif action == "cancel":
+                subject = "Order Cancelled"
+                msg = f"Reason: {reason}" if reason else "Your order has been cancelled."
+                html_body = build_html(
+                    "Order Cancelled",
+                    msg
+                )
+                order.status = "Cancelled"
+
+            else:
+                return
+
+            # ---------- Send the Email via Resend ----------
+            # try:
+            print('order.email', order.email)
+            print(html_body)
+            to = [{"email":order.email}]
+            send_new_email(to,cc=[],bcc=[],subject=subject,content=html_body)
+
+            # except Exception as mail_error:
+            #     logging.exception(f"Mail send failed: {mail_error}")
+                
+            # Save DB Status
+            order.save()
 
             # Updated pending count
             pending_count = Order.objects.filter(status__in=['Accepted', 'Making']).count()
@@ -1373,218 +1393,218 @@ def admin_dashboard(request):
     
     return render(request, 'admin2/adminmanage.html', context)
 
-@csrf_exempt
-def api_update_order_status(request, order_id):
-    """
-    POST API to update order status, send Gmail email, and push FCM notification.
-    Expects POST with 'action' in: accept | making | collect | delivered | cancel
-    Optional 'reason' when action == 'cancel'
-    Returns JSON: { success, status, email_sent, fcm_sent }
-    """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
+# @csrf_exempt
+# def api_update_order_status(request, order_id):
+#     """
+#     POST API to update order status, send Gmail email, and push FCM notification.
+#     Expects POST with 'action' in: accept | making | collect | delivered | cancel
+#     Optional 'reason' when action == 'cancel'
+#     Returns JSON: { success, status, email_sent, fcm_sent }
+#     """
+#     if request.method != 'POST':
+#         return JsonResponse({'success': False, 'error': 'Invalid request method.'}, status=405)
 
-    # Only staff or management allowed
-    if not (request.user.is_authenticated and (request.user.is_staff or getattr(request.user, 'user_type', None) == 'management')):
-        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+#     # Only staff or management allowed
+#     if not (request.user.is_authenticated and (request.user.is_staff or getattr(request.user, 'user_type', None) == 'management')):
+#         return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
 
-    # Support JSON body or form-data
-    try:
-        payload = {}
-        if request.content_type == 'application/json' and request.body:
-            payload = json.loads(request.body.decode('utf-8') or '{}')
-        else:
-            payload = request.POST.dict()
-    except Exception:
-        payload = request.POST.dict()
+#     # Support JSON body or form-data
+#     try:
+#         payload = {}
+#         if request.content_type == 'application/json' and request.body:
+#             payload = json.loads(request.body.decode('utf-8') or '{}')
+#         else:
+#             payload = request.POST.dict()
+#     except Exception:
+#         payload = request.POST.dict()
 
-    action = (payload.get('action') or '').lower()
-    if not action:
-        return JsonResponse({'success': False, 'error': 'Missing action.'}, status=400)
+#     action = (payload.get('action') or '').lower()
+#     if not action:
+#         return JsonResponse({'success': False, 'error': 'Missing action.'}, status=400)
 
-    mapping = {
-        'accept': 'Accepted',
-        'making': 'Making',
-        'collect': 'Ready to Collect',
-        'delivered': 'Delivered',
-        'cancel': 'Cancelled'
-    }
-    if action not in mapping:
-        return JsonResponse({'success': False, 'error': 'Unknown action.'}, status=400)
+#     mapping = {
+#         'accept': 'Accepted',
+#         'making': 'Making',
+#         'collect': 'Ready to Collect',
+#         'delivered': 'Delivered',
+#         'cancel': 'Cancelled'
+#     }
+#     if action not in mapping:
+#         return JsonResponse({'success': False, 'error': 'Unknown action.'}, status=400)
 
-    order = get_object_or_404(Order, pk=order_id)
-    order.status = mapping[action]
-    if action == 'cancel':
-        order.cancellation_reason = payload.get('reason', '')
-    order.save()
+#     order = get_object_or_404(Order, pk=order_id)
+#     order.status = mapping[action]
+#     if action == 'cancel':
+#         order.cancellation_reason = payload.get('reason', '')
+#     order.save()
 
-    # 1) Send email via Django send_mail (Gmail SMTP configured in settings.py)
-    email_sent = False
-    try:
-        subject = f'Order #{order.id} Status: {order.status}'
-        message_body = f"""
-Hello,
+#     # 1) Send email via Django send_mail (Gmail SMTP configured in settings.py)
+#     email_sent = False
+#     try:
+#         subject = f'Order #{order.id} Status: {order.status}'
+#         message_body = f"""
+# Hello,
 
-Your order #{order.id} for "{order.item}" (Qty: {order.qty}) is now: {order.status}
+# Your order #{order.id} for "{order.item}" (Qty: {order.qty}) is now: {order.status}
 
-Order Details:
-- Item: {order.item}
-- Price: ${order.price}
-- Quantity: {order.qty}
-- Delivery: {order.delivery}
-- Address: {order.address}
+# Order Details:
+# - Item: {order.item}
+# - Price: ${order.price}
+# - Quantity: {order.qty}
+# - Delivery: {order.delivery}
+# - Address: {order.address}
 
-If you have any questions, please contact us.
+# If you have any questions, please contact us.
 
-Thanks for your order!
-        """.strip()
+# Thanks for your order!
+#         """.strip()
         
-        send_mail(
-            subject=subject,
-            message=message_body,
-            from_email=settings.EMAIL_HOST_USER,
-            recipient_list=[order.email],
-            fail_silently=False
-        )
-        email_sent = True
-        logging.info(f"Email sent to {order.email} for order {order.id}")
-    except Exception as e:
-        logging.exception(f"Failed to send order status email to {order.email}: {str(e)}")
+#         send_mail(
+#             subject=subject,
+#             message=message_body,
+#             from_email=settings.EMAIL_HOST_USER,
+#             recipient_list=[order.email],
+#             fail_silently=False
+#         )
+#         email_sent = True
+#         logging.info(f"Email sent to {order.email} for order {order.id}")
+#     except Exception as e:
+#         logging.exception(f"Failed to send order status email to {order.email}: {str(e)}")
 
-    # 2) Send FCM push to topic "orders" (optional, requires FIREBASE_SERVER_KEY)
-    fcm_sent = False
-    fcm_key = getattr(settings, 'FIREBASE_SERVER_KEY', None)
-    if fcm_key:
-        try:
-            fcm_url = 'https://fcm.googleapis.com/fcm/send'
-            fcm_payload = {
-                "to": "/topics/orders",
-                "notification": {
-                    "title": f"Order #{order.id} - {order.status}",
-                    "body": f"Order for {order.item} is now {order.status}."
-                },
-                "data": {
-                    "order_id": str(order.id),
-                    "status": order.status,
-                    "item": order.item
-                }
-            }
-            headers = {
-                'Authorization': f'key={fcm_key}',
-                'Content-Type': 'application/json'
-            }
-            resp = requests.post(fcm_url, headers=headers, json=fcm_payload, timeout=10)
-            fcm_sent = resp.status_code == 200
-            if not fcm_sent:
-                logging.warning(f"FCM response: {resp.status_code} {resp.text}")
-        except Exception as e:
-            logging.exception(f"Failed to send FCM notification: {str(e)}")
+#     # 2) Send FCM push to topic "orders" (optional, requires FIREBASE_SERVER_KEY)
+#     fcm_sent = False
+#     fcm_key = getattr(settings, 'FIREBASE_SERVER_KEY', None)
+#     if fcm_key:
+#         try:
+#             fcm_url = 'https://fcm.googleapis.com/fcm/send'
+#             fcm_payload = {
+#                 "to": "/topics/orders",
+#                 "notification": {
+#                     "title": f"Order #{order.id} - {order.status}",
+#                     "body": f"Order for {order.item} is now {order.status}."
+#                 },
+#                 "data": {
+#                     "order_id": str(order.id),
+#                     "status": order.status,
+#                     "item": order.item
+#                 }
+#             }
+#             headers = {
+#                 'Authorization': f'key={fcm_key}',
+#                 'Content-Type': 'application/json'
+#             }
+#             resp = requests.post(fcm_url, headers=headers, json=fcm_payload, timeout=10)
+#             fcm_sent = resp.status_code == 200
+#             if not fcm_sent:
+#                 logging.warning(f"FCM response: {resp.status_code} {resp.text}")
+#         except Exception as e:
+#             logging.exception(f"Failed to send FCM notification: {str(e)}")
 
-    return JsonResponse({
-        'success': True,
-        'status': order.status,
-        'email_sent': email_sent,
-        'fcm_sent': fcm_sent,
-        'message': f'Order {order.id} updated to {order.status}'
-    })
+#     return JsonResponse({
+#         'success': True,
+#         'status': order.status,
+#         'email_sent': email_sent,
+#         'fcm_sent': fcm_sent,
+#         'message': f'Order {order.id} updated to {order.status}'
+#     })
 
-from django.core.mail import send_mail
-from django.http import JsonResponse
-from django.conf import settings
-from django.views.decorators.http import require_http_methods
-import logging
-import json
+# from django.core.mail import send_mail
+# from django.http import JsonResponse
+# from django.conf import settings
+# from django.views.decorators.http import require_http_methods
+# import logging
+# import json
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
-def send_order_confirmation_emails(order_id, customer_email):
-    """
-    Send order confirmation emails to customer and manager.
-    Robust error handling for production servers.
-    """
-    try:
-        order = Order.objects.get(id=order_id)
+# def send_order_confirmation_emails(order_id, customer_email):
+#     """
+#     Send order confirmation emails to customer and manager.
+#     Robust error handling for production servers.
+#     """
+#     try:
+#         order = Order.objects.get(id=order_id)
         
-        # Email to customer
-        customer_subject = "Order Successfully Placed!"
-        customer_message = f"""
-Dear Customer,
+#         # Email to customer
+#         customer_subject = "Order Successfully Placed!"
+#         customer_message = f"""
+# Dear Customer,
 
-Your order has been successfully placed!
+# Your order has been successfully placed!
 
-Order Details:
-- Order ID: {order.id}
-- Item: {order.item}
-- Quantity: {order.qty}
-- Total Price: {order.total_price} CHF
+# Order Details:
+# - Order ID: {order.id}
+# - Item: {order.item}
+# - Quantity: {order.qty}
+# - Total Price: {order.total_price} CHF
 
-Thank you for your order. We will start preparing it soon.
+# Thank you for your order. We will start preparing it soon.
 
-Best regards,
-Sushi Restaurant
-        """
+# Best regards,
+# Sushi Restaurant
+#         """
         
-        # Email to manager
-        manager_subject = "New Order Received!"
-        manager_message = f"""
-Hello Manager,
+#         # Email to manager
+#         manager_subject = "New Order Received!"
+#         manager_message = f"""
+# Hello Manager,
 
-A new order has been received.
+# A new order has been received.
 
-Order Details:
-- Order ID: {order.id}
-- Customer Email: {customer_email}
-- Mobile: {order.mobile}
-- Item: {order.item}
-- Quantity: {order.qty}
-- Total Price: {order.total_price} CHF
-- Status: {order.status}
+# Order Details:
+# - Order ID: {order.id}
+# - Customer Email: {customer_email}
+# - Mobile: {order.mobile}
+# - Item: {order.item}
+# - Quantity: {order.qty}
+# - Total Price: {order.total_price} CHF
+# - Status: {order.status}
 
-Please process this order accordingly.
+# Please process this order accordingly.
 
-Best regards,
-Order System
-        """
+# Best regards,
+# Order System
+#         """
         
-        from_email = settings.DEFAULT_FROM_EMAIL
+#         from_email = settings.DEFAULT_FROM_EMAIL
         
-        # Send email to customer
-        try:
-            send_mail(
-                customer_subject,
-                customer_message,
-                from_email,
-                [customer_email],
-                fail_silently=False,
-                auth_user=settings.EMAIL_HOST_USER,
-                auth_password=settings.EMAIL_HOST_PASSWORD
-            )
-            logger.info(f"Order confirmation email sent to customer {customer_email} for order {order_id}")
-        except Exception as e:
-            logger.error(f"Failed to send customer email for order {order_id}: {str(e)}")
+#         # Send email to customer
+#         try:
+#             send_mail(
+#                 customer_subject,
+#                 customer_message,
+#                 from_email,
+#                 [customer_email],
+#                 fail_silently=False,
+#                 auth_user=settings.EMAIL_HOST_USER,
+#                 auth_password=settings.EMAIL_HOST_PASSWORD
+#             )
+#             logger.info(f"Order confirmation email sent to customer {customer_email} for order {order_id}")
+#         except Exception as e:
+#             logger.error(f"Failed to send customer email for order {order_id}: {str(e)}")
         
-        # Send email to manager
-        try:
-            send_mail(
-                manager_subject,
-                manager_message,
-                from_email,
-                [settings.MANAGER_EMAIL],
-                fail_silently=False,
-                auth_user=settings.EMAIL_HOST_USER,
-                auth_password=settings.EMAIL_HOST_PASSWORD
-            )
-            logger.info(f"Order notification email sent to manager for order {order_id}")
-        except Exception as e:
-            logger.error(f"Failed to send manager email for order {order_id}: {str(e)}")
+#         # Send email to manager
+#         try:
+#             send_mail(
+#                 manager_subject,
+#                 manager_message,
+#                 from_email,
+#                 [settings.MANAGER_EMAIL],
+#                 fail_silently=False,
+#                 auth_user=settings.EMAIL_HOST_USER,
+#                 auth_password=settings.EMAIL_HOST_PASSWORD
+#             )
+#             logger.info(f"Order notification email sent to manager for order {order_id}")
+#         except Exception as e:
+#             logger.error(f"Failed to send manager email for order {order_id}: {str(e)}")
         
-        return True
-    except Order.DoesNotExist:
-        logger.warning(f"Order {order_id} not found")
-        return False
-    except Exception as e:
-        logger.exception(f"Unexpected error sending order emails for order {order_id}: {str(e)}")
-        return False
+#         return True
+#     except Order.DoesNotExist:
+#         logger.warning(f"Order {order_id} not found")
+#         return False
+#     except Exception as e:
+#         logger.exception(f"Unexpected error sending order emails for order {order_id}: {str(e)}")
+#         return False
 
 
 @require_http_methods(["POST"])
@@ -1614,104 +1634,104 @@ def send_order_emails(request):
     return JsonResponse({'success': False, 'message': 'Invalid request method'}, status=405)
 
 
-def order_action_admin(request, order_id):
-    """
-    Handle admin order actions via POST. Returns JSON for AJAX requests.
-    Sends status update email to customer.
-    Production-ready with robust error handling.
-    """
-    if request.method != 'POST':
-        return HttpResponseBadRequest("Invalid method")
+# def order_action_admin(request, order_id):
+#     """
+#     Handle admin order actions via POST. Returns JSON for AJAX requests.
+#     Sends status update email to customer.
+#     Production-ready with robust error handling.
+#     """
+#     if request.method != 'POST':
+#         return HttpResponseBadRequest("Invalid method")
 
-    try:
-        order = get_object_or_404(Order, id=order_id)
-        action = request.POST.get('action')
-        reason = request.POST.get('reason', '').strip()
+#     try:
+#         order = get_object_or_404(Order, id=order_id)
+#         action = request.POST.get('action')
+#         reason = request.POST.get('reason', '').strip()
 
-        # Map actions to status
-        status_map = {
-            'accept': 'Accepted',
-            'making': 'Making',
-            'collect': 'Ready to Collect',
-            'delivered': 'Delivered',
-            'cancel': 'Cancelled'
-        }
+#         # Map actions to status
+#         status_map = {
+#             'accept': 'Accepted',
+#             'making': 'Making',
+#             'collect': 'Ready to Collect',
+#             'delivered': 'Delivered',
+#             'cancel': 'Cancelled'
+#         }
 
-        if action not in status_map:
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'message': 'Unknown action'}, status=400)
-            return redirect(request.META.get('HTTP_REFERER', '/'))
+#         if action not in status_map:
+#             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#                 return JsonResponse({'success': False, 'message': 'Unknown action'}, status=400)
+#             return redirect(request.META.get('HTTP_REFERER', '/'))
 
-        order.status = status_map[action]
+#         order.status = status_map[action]
         
-        if action == 'cancel' and hasattr(order, 'cancel_reason'):
-            order.cancel_reason = reason
+#         if action == 'cancel' and hasattr(order, 'cancel_reason'):
+#             order.cancel_reason = reason
 
-        order.save()
-        logger.info(f"Order {order_id} status changed to {order.status}")
+#         order.save()
+#         logger.info(f"Order {order_id} status changed to {order.status}")
 
-        # Send status update email to customer
-        recipient = getattr(order, 'email', None) or (getattr(order, 'user', None) and getattr(order.user, 'email', None))
-        mail_sent = False
+#         # Send status update email to customer
+#         recipient = getattr(order, 'email', None) or (getattr(order, 'user', None) and getattr(order.user, 'email', None))
+#         mail_sent = False
         
-        if recipient:
-            subject = f"Order #{order.id} Status Update"
-            message = f"""
-Dear Customer,
+#         if recipient:
+#             subject = f"Order #{order.id} Status Update"
+#             message = f"""
+# Dear Customer,
 
-Your order status has been updated.
+# Your order status has been updated.
 
-Order Details:
-- Order ID: {order.id}
-- Item: {order.item}
-- New Status: {order.status}
+# Order Details:
+# - Order ID: {order.id}
+# - Item: {order.item}
+# - New Status: {order.status}
 
-Thank you for your patience.
+# Thank you for your patience.
 
-Best regards,
-Sushi Restaurant
-            """
-            from_email = settings.DEFAULT_FROM_EMAIL
+# Best regards,
+# Sushi Restaurant
+#             """
+#             from_email = settings.DEFAULT_FROM_EMAIL
             
-            try:
-                send_mail(
-                    subject,
-                    message,
-                    from_email,
-                    [recipient],
-                    fail_silently=False,
-                    auth_user=settings.EMAIL_HOST_USER,
-                    auth_password=settings.EMAIL_HOST_PASSWORD
-                )
-                mail_sent = True
-                logger.info(f"Status update email sent to {recipient} for order {order_id}")
-            except Exception as e:
-                mail_sent = False
-                logger.error(f"Failed to send status update email for order {order_id}: {str(e)}")
+#             try:
+#                 send_mail(
+#                     subject,
+#                     message,
+#                     from_email,
+#                     [recipient],
+#                     fail_silently=False,
+#                     auth_user=settings.EMAIL_HOST_USER,
+#                     auth_password=settings.EMAIL_HOST_PASSWORD
+#                 )
+#                 mail_sent = True
+#                 logger.info(f"Status update email sent to {recipient} for order {order_id}")
+#             except Exception as e:
+#                 mail_sent = False
+#                 logger.error(f"Failed to send status update email for order {order_id}: {str(e)}")
 
-        # Compute pending count
-        try:
-            pending_count = Order.objects.filter(status__in=['Pending', 'Placed']).count()
-        except Exception:
-            pending_count = 0
+#         # Compute pending count
+#         try:
+#             pending_count = Order.objects.filter(status__in=['Pending', 'Placed']).count()
+#         except Exception:
+#             pending_count = 0
 
-        # AJAX response
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({
-                'success': True,
-                'message': f"Order status updated to {order.status}",
-                'new_status': order.status,
-                'pending_count': pending_count,
-                'mail_sent': mail_sent
-            })
+#         # AJAX response
+#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#             return JsonResponse({
+#                 'success': True,
+#                 'message': f"Order status updated to {order.status}",
+#                 'new_status': order.status,
+#                 'pending_count': pending_count,
+#                 'mail_sent': mail_sent
+#             })
 
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+#         return redirect(request.META.get('HTTP_REFERER', '/'))
 
-    except Exception as e:
-        logger.exception(f"Error processing order action for order {order_id}: {str(e)}")
-        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-            return JsonResponse({'success': False, 'message': 'Internal server error'}, status=500)
-        return redirect(request.META.get('HTTP_REFERER', '/'))
+#     except Exception as e:
+#         logger.exception(f"Error processing order action for order {order_id}: {str(e)}")
+#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#             return JsonResponse({'success': False, 'message': 'Internal server error'}, status=500)
+#         return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 
