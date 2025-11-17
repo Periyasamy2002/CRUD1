@@ -79,7 +79,11 @@ urlpatterns = [
     path('api/dashboard/metrics/', views.dashboard_metrics, name='dashboard_metrics'),
     path('send-order-emails/', views.send_order_emails, name='send_order_emails'),
     path('send_new_email', views.send_new_email, name='send_new_email'),
-  
+
+    # --- Static Pages ---
+    path('privacy/', views.privacy_view, name='privacy'),
+    path('terms/', views.terms_view, name='terms'),
+    path('cookies/', views.cookies_view, name='cookies'),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Your Cart – SUSHI NARUTO MOMOS AND MORE{% endblock %}
+
+{% block content %}
+<head>
+  <meta charset="UTF-8">
+  <title>Cookie Policy - SUSHI NARUTO MOMOS AND MORE</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="icon" href="images/favicon.ico">
+  <!-- Add Font Awesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <meta property="og:title" content="SUSHI NARUTO MOMOS AND MORE - Allschwil's Best Sushi & Asian Cuisine">
+  <meta property="og:description"
+    content="Authentic sushi, Asian food, and takeaway in Allschwil, Switzerland. Reserve a table or order online!">
+  <meta property="og:image" content="images/restaurant_og.jpg">
+  <meta property="og:url" content="https://sushinaruto.ch">
+  <link rel="stylesheet" href="./index.css">
+
+</head>
+
+<body class="bg-white text-gray-800 font-sans leading-relaxed">
+
+  
+
+  <main class="min-h-[60vh] py-12 bg-gray-50">
+    <div class="container mx-auto px-4">
+      <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-6">Cookie Policy</h1>
+      <p class="text-sm text-gray-500 mb-8">Last Updated: September 3, 2025</p>
+
+      <div class="prose max-w-none bg-white p-6 md:p-8 rounded-lg shadow">
+        <p>This Cookie Policy explains how SUSHI NARUTO MOMOS AND MORE ("we", "us", and "our") uses cookies and similar
+          technologies to recognize you when you visit our website at <a href="https://sushinaruto.ch"
+            class="text-red-600 hover:underline">sushinaruto.ch</a> ("Website"). It explains what these technologies are
+          and why we use them, as well as your rights to control our use of them.</p>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mt-8">What are cookies?</h2>
+        <p>A cookie is a small data file that is placed on your device. It allows us to remember your preferences,
+          understand how you use our website, and tailor your experience.</p>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mt-8">Why do we use cookies?</h2>
+        <p>We use first-party and third-party cookies for several reasons. Some cookies are required for technical
+          reasons in order for our Website to operate, and we refer to these as "essential" or "strictly necessary"
+          cookies. Other cookies also enable us to track and target the interests of our users to enhance the experience
+          on our Online Properties. Third parties serve cookies through our Website for advertising, analytics, and
+          other purposes. This is described in more detail below.</p>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mt-8">What types of cookies do we use?</h2>
+        <ul class="list-disc list-inside space-y-2">
+          <li>
+            <strong>Required cookies:</strong> These cookies are strictly necessary to provide you with services
+            available through our Website and to use some of its features, such as access to secure areas.
+          </li>
+          <li>
+            <strong>Functional cookies:</strong> These cookies are used to enhance the performance and functionality of
+            our Website but are non-essential to their use. However, without these cookies, certain functionality (like
+            pre-filling your details for the next order) may become unavailable.
+          </li>
+          <li>
+            <strong>Advertising cookies:</strong> These cookies are used to make advertising messages more relevant to
+            you. They perform functions like preventing the same ad from continuously reappearing, ensuring that ads are
+            properly displayed for advertisers, and in some cases selecting advertisements that are based on your
+            interests.
+          </li>
+        </ul>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mt-8">How can you control cookies?</h2>
+        <p>You have the right to decide whether to accept or reject cookies. You can exercise your cookie rights by
+          setting your preferences in the Cookie Consent Manager. The Cookie Consent Manager allows you to select which
+          categories of cookies you accept or reject. Essential cookies cannot be rejected as they are strictly
+          necessary to provide you with services.</p>
+
+        <p>The specific types of first and third party cookies served through our Website and the purposes they perform
+          are described in the table below (please note that the specific cookies served may vary depending on the
+          specific Online Properties you visit):</p>
+
+        <div class="overflow-x-auto mt-6">
+          <table class="min-w-full bg-white border border-gray-200">
+            <thead class="bg-gray-100">
+              <tr>
+                <th class="text-left py-2 px-4 border-b">Category</th>
+                <th class="text-left py-2 px-4 border-b">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="py-2 px-4 border-b">Required</td>
+                <td class="py-2 px-4 border-b">Enables core site functionality.</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-4 border-b">Functional</td>
+                <td class="py-2 px-4 border-b">Remembers your preferences and settings.</td>
+              </tr>
+              <tr>
+                <td class="py-2 px-4 border-b">Advertising</td>
+                <td class="py-2 px-4 border-b">Provides interest-based advertising.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 class="text-2xl font-semibold text-gray-700 mt-8">Where can I get further information?</h2>
+        <p>If you have any questions about our use of cookies or other technologies, please email us at <a
+            href="mailto:info.sushinaruto@gmail.com" class="text-red-600 hover:underline">info.sushinaruto@gmail.com</a>.</p>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- Cookie Preferences Modal -->
+  <div id="cookie-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+    style="display: none;">
+    <div class="bg-white rounded-lg shadow-lg max-w-xl w-full p-8 relative">
+      <button id="cookie-modal-close"
+        class="absolute top-3 right-3 text-gray-400 hover:text-red-600 text-2xl font-bold focus:outline-none">&times;</button>
+      <h1 class="text-2xl font-bold text-red-700 mb-4">Your Cookie Preferences</h1>
+      <p class="mb-4 text-gray-700">
+        Oracle and our third party partners may use cookies for the following purposes:
+      </p>
+      <ul class="list-disc list-inside mb-4 text-gray-700 space-y-1">
+        <li><span class="font-semibold text-gray-900">Required cookies</span> are necessary for the site to function.
+        </li>
+        <li><span class="font-semibold text-gray-900">Functional cookies</span> help us to prefill your details on your
+          next order and to optimize the site for easy reordering.</li>
+        <li><span class="font-semibold text-gray-900">Advertising cookies</span> allow for interest-based advertising
+          and tailored content across your browsers and devices.</li>
+      </ul>
+      <p class="mb-6 text-gray-700">
+        Please visit our <a href="./cookies1.html" class="text-red-600 hover:underline font-medium">Cookie Policy</a>
+        for more information.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded transition">Accept
+          all</button>
+        <button class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded transition">Reject
+          all</button>
+        <button
+          class="bg-white border border-gray-300 hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 rounded transition">Change
+          preferences</button>
+      </div>
+    </div>
+  </div>
+
+  
+ 
+
+  <!-- Chatbot -->
+  <div id="chatbot-container" class="fixed bottom-5 right-5 z-50">
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle"
+      class="bg-red-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center focus:outline-none hover:bg-red-700 transition">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd"
+          d="M18 10c0 3.866-3.582 7-8 7a8.962 8.962 0 01-4.326-.982l-1.888.944a1 1 0 01-1.265-1.265l.944-1.888A8.962 8.962 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.416 14.584A6.962 6.962 0 0010 16c3.314 0 6-2.239 6-5s-2.686-5-6-5-6 2.239-6 5c0 1.282.47 2.45 1.235 3.355l-.69.345a1 1 0 00-.43.868v.01a1 1 0 001.265 1.265l1.888-.944a.999.999 0 01.868-.43z"
+          clip-rule="evenodd" />
+      </svg>
+    </button>
+
+    <!-- Chat Window -->
+    <div id="chat-window" class="hidden absolute bottom-20 right-0 w-80 bg-white rounded-lg shadow-2xl flex flex-col"
+      style="height: 450px;">
+      <!-- Header -->
+      <div class="bg-red-600 text-white p-3 flex justify-between items-center rounded-t-lg">
+        <h3 class="font-semibold">Advisor Pierre 👨‍🍳</h3>
+        <button id="chatbot-close" class="text-white hover:text-gray-200 text-2xl leading-none">&times;</button>
+      </div>
+
+      <!-- Messages -->
+      <div id="chat-messages" class="flex-1 p-4 overflow-y-auto">
+        <div class="mb-3">
+          <div class="bg-gray-200 text-gray-800 p-2 rounded-lg inline-block max-w-xs">
+            Bonjour! I am Pierre, your virtual culinary advisor. How may I assist you with our menu today?
+          </div>
+        </div>
+      </div>
+
+      <!-- Input -->
+      <div class="p-3 border-t">
+        <div class="flex">
+          <input type="text" id="chat-input" placeholder="Ask me anything..."
+            class="flex-1 p-2 border rounded-l-md focus:outline-none focus:ring-2 focus:ring-red-400">
+          <button id="chat-send" class="bg-red-600 text-white px-4 rounded-r-md hover:bg-red-700">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script>
+    // Mobile Menu Toggle
+    const menuBtn = document.getElementById("menu-btn");
+    const mobileMenu = document.getElementById("mobile-menu");
+    menuBtn.addEventListener("click", () => {
+      mobileMenu.classList.toggle("hidden");
+      mobileMenu.classList.toggle("animate-slideDown");
+    });
+
+    // Chatbot UI functionality
+    document.addEventListener("DOMContentLoaded", function () {
+      const chatbotToggle = document.getElementById("chatbot-toggle");
+      const chatWindow = document.getElementById("chat-window");
+      const chatbotClose = document.getElementById("chatbot-close");
+      const chatSend = document.getElementById("chat-send");
+      const chatInput = document.getElementById("chat-input");
+      const chatMessages = document.getElementById("chat-messages");
+
+      chatbotToggle.addEventListener("click", () => { chatWindow.classList.toggle("hidden"); });
+      chatbotClose.addEventListener("click", () => { chatWindow.classList.add("hidden"); });
+
+      const sendMessage = () => {
+        const messageText = chatInput.value.trim();
+        if (messageText) {
+          const userMessageDiv = document.createElement("div");
+          userMessageDiv.className = "mb-3 flex justify-end";
+          userMessageDiv.innerHTML = `<div class="bg-red-600 text-white p-2 rounded-lg inline-block max-w-xs">${messageText}</div>`;
+          chatMessages.appendChild(userMessageDiv);
+          chatInput.value = "";
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      };
+
+      chatSend.addEventListener("click", sendMessage);
+      chatInput.addEventListener("keypress", (e) => { if (e.key === "Enter") { sendMessage(); } });
+    });
+
+    // Cookie Modal functionality
+    document.addEventListener("DOMContentLoaded", function () {
+      const cookieModal = document.getElementById("cookie-modal");
+      const cookieModalClose = document.getElementById("cookie-modal-close");
+      const cookiePolicyLink = document.getElementById("cookie-policy-link");
+
+      // Show modal on link click
+      cookiePolicyLink.addEventListener("click", (e) => {
+        e.preventDefault();
+        cookieModal.style.display = "flex";
+      });
+
+      // Hide modal on close button click
+      cookieModalClose.addEventListener("click", () => {
+        cookieModal.style.display = "none";
+      });
+    });
+  </script>
+
+</body>
+
+</html>
+{% endblock %}
