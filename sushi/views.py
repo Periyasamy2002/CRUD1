@@ -2,62 +2,50 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse
 from django.core.mail import send_mail, BadHeaderError
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Prefetch, Sum, Count, F, ExpressionWrapper, DecimalField, Q
+from django.db.models import Prefetch
 from django.views.decorators.http import require_http_methods
+from django.db.models import Sum, Count, F, ExpressionWrapper, DecimalField
 import json
+from django.urls import reverse
+from django.conf import settings
 import logging
 import os
-from datetime import timedelta
-
 import requests
+
+from django.http import HttpResponse
+from django.conf import settings
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
 
-from django.conf import settings
-
-from .models import (
-    MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
-)
+from .models import MenuCategory, MenuItem, SpecialMenu, Order, CustomUser, Contact, TableReservation
 from .forms import MenuItemForm, SpecialMenuForm
+from django.db.models import Q
 
 logger = logging.getLogger(__name__)
 
-def send_new_email(to, cc=None, bcc=None, subject="", content=""):
-    """
-    Send transactional email using Brevo (previously Sendinblue).
-    Returns True on success, False on failure.
-    """
-    cc = cc or []
-    bcc = bcc or []
-    try:
-        configuration = sib_api_v3_sdk.Configuration()
-        configuration.api_key['api-key'] = settings.BREVO_API_KEY
+def send_new_email(to,cc=[],bcc=[],subject="",content=""):
+    configuration = sib_api_v3_sdk.Configuration()
+    configuration.api_key['api-key'] = settings.BREVO_API_KEY
 
-        api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
-            sib_api_v3_sdk.ApiClient(configuration)
-        )
-        sender = {"name": getattr(settings, "DEFAULT_FROM_NAME", "SUSHI NARUTO MOMOS"),
-                  "email": settings.DEFAULT_FROM_EMAIL}
+    api_instance = sib_api_v3_sdk.TransactionalEmailsApi(
+        sib_api_v3_sdk.ApiClient(configuration)
+    )
+    sender = {"name": "SUSHI NARUTO MOMOS", "email": settings.DEFAULT_FROM_EMAIL}
 
-        send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
-            to=to,
-            cc=cc or None,
-            bcc=bcc or None,
-            html_content=content,
-            sender=sender,
-            subject=subject,
-        )
-        api_response = api_instance.send_transac_email(send_smtp_email)
-        return True
-    except ApiException as e:
-        logger.exception("Brevo API exception: %s", e)
-    except Exception:
-        logger.exception("Failed to send transactional email")
-    return False
+    send_smtp_email = sib_api_v3_sdk.SendSmtpEmail(
+        to=to,
+        # cc=cc,
+        # bcc=bcc,
+        html_content=content,
+        sender=sender,
+        subject=subject,
+    )
+    api_response = api_instance.send_transac_email(send_smtp_email)
+    return True
 
 
 
@@ -98,8 +86,8 @@ def contact(request):
         # Save to DB (safe guard)
         try:
             Contact.objects.create(name=name or 'Anonymous', email=email, message=message)
-        except Exception:
-            logger.exception("Failed to save contact message")
+        except Exception as e:
+            logging.exception("Failed to save contact message")
             messages.error(request, 'Failed to save your message. Please try again later.')
             return redirect('contact')
 
@@ -110,8 +98,8 @@ def contact(request):
         try:
             send_mail(subject, full_message, settings.DEFAULT_FROM_EMAIL, [settings.EMAIL_HOST_USER])
             messages.success(request, 'Message sent successfully!')
-        except Exception:
-            logger.exception("Failed to send contact notification email")
+        except Exception as e:
+            logging.exception("Failed to send contact notification email")
             # Still treat as saved; inform user that email failed
             messages.success(request, 'Message saved. Notification email could not be sent at this time.')
 
@@ -152,7 +140,7 @@ def table_reservation(request):
                     [email]
                 )
             except Exception:
-                logger.exception("Failed to send reservation confirmation email")
+                pass
 
         messages.success(request, 'Reservation submitted. We will contact you to confirm.')
         # Redirect to the correct URL name and include success flag for template
@@ -456,13 +444,17 @@ def menuitem_update(request, pk):
     return render(request, 'admin2/menuitem_add.html', {'form': form})
 
 # ---------------- Order Processing ----------------
-
 @csrf_exempt
 def order_submit(request):
     """
-    Accepts JSON (AJAX) POSTs for submitting orders.
-    Expects an 'email' field. Supports cart (list) or single item object.
-    Returns JSON with created order ids or error.
+    Accepts both JSON (AJAX) and regular form POSTs.
+    Supports:
+      - cart: [ {name, price, qty}, ... ]  (JSON array)
+      - single item: item, price, qty, mobile, address, delivery, orderType
+    For guest users, an 'email' field is required.
+    On success:
+      - For JSON requests: returns JsonResponse with created order ids
+      - For form POSTs: stores created ids in session['last_order_ids'] and redirects to cart_page
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request'}, status=400)
@@ -595,16 +587,31 @@ def order_submit(request):
     """
 
     try:
-        manager = [{"email":"vshigamaru@gmail.com"}]  #settings.ORDER_MANAGER_EMAIL
+        manager = [{"email": settings.ORDER_MANAGER_EMAIL}]
         send_new_email(to=manager, subject="New Order Received", content=message)
 
-        customer = [{"email": order.email}]
+        customer = [{"email": email}]
         send_new_email(to=customer, subject="Your Order Confirmation - Sushi Naruto", content=message)
     except Exception:
         logger.exception("Email Sending Error")
 
     return JsonResponse({'success': True, 'order_ids': created_ids})
 
+
+
+
+
+
+    
+    
+import logging
+from django.http import JsonResponse
+from django.shortcuts import redirect, get_object_or_404
+from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from .models import Order
 
 
 
@@ -629,15 +636,15 @@ def order_action(request, order_id):
 
         return redirect('order_details')
 
-    except Exception:
-        logger.exception("Error in order_action")
+    except Exception as e:
+        logging.exception("Error in order_action")
         return redirect('order_details')
 
 @login_required
 def order_action_admin(request, order_id):
     try:
         # Permission check
-        if not (request.user.is_staff or getattr(request.user, "user_type", None) == "management"):
+        if not request.user.is_staff and getattr(request.user, "user_type", None) != "management":
             if request.headers.get('x-requested-with') == 'XMLHttpRequest':
                 return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=403)
             return redirect('admin2_login')
@@ -726,14 +733,14 @@ def order_action_admin(request, order_id):
                 return
 
             # ---------- Send the Email via Resend ----------
-            try:
-                print('order.email', order.email)
-                print(html_body)
-                to = [{"email":order.email}]
-                send_new_email(to,cc=[],bcc=[],subject=subject,content=html_body)
+            # try:
+            print('order.email', order.email)
+            print(html_body)
+            to = [{"email":order.email}]
+            send_new_email(to,cc=[],bcc=[],subject=subject,content=html_body)
 
-            except Exception as mail_error:
-                logging.exception(f"Mail send failed: {mail_error}")
+            # except Exception as mail_error:
+            #     logging.exception(f"Mail send failed: {mail_error}")
                 
             # Save DB Status
             order.save()
@@ -775,34 +782,21 @@ def order_history(request):
 
 @login_required
 def order_detail(request, pk):
-    try:
-        if request.user.is_staff:
-            order = get_object_or_404(Order, pk=pk)
-        else:
-            order = get_object_or_404(Order, pk=pk, email=request.user.email)
+    order = Order.objects.get(pk=pk, email=request.user.email)
+    return render(request, 'order_detail.html', {'order': order})
 
-        try:
-            menu_item = MenuItem.objects.get(name=order.item)
-            item_image = menu_item.image
-        except MenuItem.DoesNotExist:
-            item_image = None
-
-        context = {
-            'order': order,
-            'item_image': item_image,
-            'status_class': get_status_class(order.status),
-            'can_cancel': order.status in ['pending', 'Accepted'],
-            'can_modify': request.user.is_staff,
-            'active_tab': 'orders'
-        }
-        return render(request, 'order_detail.html', context)
-
-    except Order.DoesNotExist:
-        messages.error(request, 'Order not found.')
-        return redirect('dashboard')
-
-# alias
+# Alias for URL compatibility
 order_details = order_detail
+
+@login_required
+def order_live_track(request):
+    orders = Order.objects.filter(email=request.user.email, status='pending').order_by('-created_at')
+    return render(request, 'order_live_track.html', {'orders': orders})
+
+@login_required
+def order_track(request, pk):
+    order = Order.objects.get(pk=pk, email=request.user.email)
+    return render(request, 'order_track.html', {'order': order})
 
 @login_required
 def order_live(request):
@@ -886,6 +880,72 @@ def manage_order_history(request):
     })
 
 @login_required
+def order_detail(request, pk):
+    try:
+        if request.user.is_staff:
+            order = get_object_or_404(Order, pk=pk)
+        else:
+            order = get_object_or_404(Order, pk=pk, email=request.user.email)
+            
+        # Get associated menu item if exists
+        try:
+            menu_item = MenuItem.objects.get(name=order.item)
+            item_image = menu_item.image
+        except MenuItem.DoesNotExist:
+            item_image = None
+            
+        context = {
+            'order': order,
+            'item_image': item_image,
+            'status_class': get_status_class(order.status),
+            'can_cancel': order.status in ['pending', 'Accepted'],
+            'can_modify': request.user.is_staff,
+            'active_tab': 'orders'
+        }
+        
+        return render(request, 'order_detail.html', context)
+        
+    except Order.DoesNotExist:
+        messages.error(request, 'Order not found.')
+        return redirect('dashboard')
+
+# Make this the main order_details view
+order_details = order_detail
+
+# ---------------- API Views ----------------
+
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+from django.db.models import Q
+
+@csrf_exempt
+def search_menu_items_api(request):
+    """
+    Returns JSON list of menu items matching query.
+    Each item includes: id, name, description, image_url, url (anchor to menu item id).
+    """
+    query = request.GET.get('q', '').strip()
+    if not query:
+        return JsonResponse([], safe=False)
+
+    menu_items = MenuItem.objects.filter(
+        Q(name__icontains=query) | Q(description__icontains=query)
+    ).values('id', 'name', 'description', 'image')
+
+    results = []
+    for item in menu_items:
+        image_url = f"{settings.MEDIA_URL}{item['image']}" if item['image'] else None
+        results.append({
+            'id': item['id'],
+            'name': item['name'],
+            'description': item['description'],
+            'image_url': image_url,
+            # Provide anchor that client can use to scroll: #menu-item-<id>
+            'url': f'#menu-item-{item["id"]}'
+        })
+    return JsonResponse(results, safe=False)
+
+@login_required
 def delete_order(request, pk):
     if not request.user.is_staff:
         return redirect('admin_login')
@@ -911,12 +971,67 @@ def update_order_status(request, pk):
             subject = f'Your order #{order.id} has been {status}'
             message = f'Hi, your order for {order.item} has been {status}.'
             try:
-                send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [order.email])
+                send_mail(subject, message, 'saranvignesh55@gmail.com', [order.email])
                 messages.success(request, f'Order #{order.id} updated to {status} and notification sent.')
             except Exception as e:
                 messages.error(request, f'Order status updated, but failed to send notification. Error: {e}')
 
     return redirect('manage_order_history')
+
+# ---------------- API Views ----------------
+
+@login_required
+def admin_manage(request):
+    """
+    Management landing page for admin2 users.
+    Ensures only staff or management users can access the admin manage page.
+    """
+    # Allow access for staff or management user_type
+    if not request.user.is_authenticated or not (request.user.is_staff or getattr(request.user, "user_type", None) == "management"):
+        return redirect('admin2_login')
+
+    # Add any context metrics as needed later
+    return render(request, 'admin2/adminmanage.html')
+
+
+# sushi/views.py
+from django.shortcuts import render
+
+@login_required
+def order_card_list(request):
+    orders = Order.objects.filter(email=request.user.email).order_by('-created_at')
+    return render(request, 'order_card_list.html', {'orders': orders})
+
+@login_required
+def order_card_detail(request, pk):
+    order = get_object_or_404(Order, pk=pk, email=request.user.email)
+    
+    steps = ['pending', 'Accepted', 'Making', 'Ready to Collect', 'Delivered']
+    
+    try:
+        current_step_index = steps.index(order.status)
+    except ValueError:
+        current_step_index = -1
+
+    context = {
+        'order': order,
+        'steps': steps,
+        'current_step_index': current_step_index,
+    }
+    return render(request, 'order_card_detail.html', context)
+
+
+def cart_page(request):
+    """
+    Renders cart page. When coming from a successful order_submit (form), the
+    created order ids are saved in session['last_order_ids'] and displayed here
+    as last_orders (then removed from session).
+    """
+    last_orders = []
+    last_ids = request.session.pop('last_order_ids', None)
+    if last_ids:
+        last_orders = list(Order.objects.filter(id__in=last_ids).order_by('-created_at'))
+    return render(request, 'cart.html', {'last_orders': last_orders})
 
 # ---------------- Admin Contact & Reservation Management ----------------
 
