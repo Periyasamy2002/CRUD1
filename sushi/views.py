@@ -595,10 +595,10 @@ def order_submit(request):
     """
 
     try:
-        manager = [{"email": settings.ORDER_MANAGER_EMAIL}]
+        manager = [{"email":"vshigamaru@gmail.com"}]  #settings.ORDER_MANAGER_EMAIL
         send_new_email(to=manager, subject="New Order Received", content=message)
 
-        customer = [{"email": email}]
+        customer = [{"email": order.email}]
         send_new_email(to=customer, subject="Your Order Confirmation - Sushi Naruto", content=message)
     except Exception:
         logger.exception("Email Sending Error")
